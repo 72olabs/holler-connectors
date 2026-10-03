@@ -9,7 +9,10 @@ packages. This is a private repository; it is not a new public marketplace.
 MCP launch configuration, shell launchers, skills and connector manifests.
 These files were extracted byte-for-byte from `72olabs/holler` commit
 `2f3bad0b27780b6f21180dcda7ae5c366ce8cc02` (0.8.0). No core source or source
-repository history was copied. The inherited LICENSE remains unchanged.
+repository history was copied. Current development is proprietary under
+[LICENSE](LICENSE), matching Holler's product terms. Earlier Apache grants
+remain intact; the original license text is retained for that material.
+This licensing change does not alter the extracted package bytes or manifests.
 
 Core runtime, setup policy, identity enforcement, queue adapters, doctor and
 certification remain in the private `72olabs/holler` repository. This extraction
@@ -47,3 +50,9 @@ under `share/holler/marketplace`; consumers do not clone this private repository
 Core CI is network-independent for this dependency and needs no cross-repo token.
 Nothing in this repository automatically publishes a release or modifies a live
 installation. OpenCode remains subject to its existing live-certification gate.
+
+## Contributions
+
+Source access alone grants no right to modify or redistribute proprietary code.
+Contributions require a separate written agreement with 72o Labs establishing
+the necessary rights before acceptance. Previously granted rights are unchanged.
