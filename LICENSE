@@ -1,5 +1,76 @@
+Holler Proprietary Software License
 
-                                 Apache License
+Copyright (c) 2026 72o Labs. All rights reserved.
+
+1. Scope and ownership
+
+Holler, including its source code, binaries, first-party connectors, and
+accompanying documentation (the "Software"), is proprietary to 72o Labs
+(the "Licensor"), except for the separately licensed material described below.
+The Software is licensed, not sold. No ownership rights are transferred.
+All rights not expressly granted are reserved.
+
+2. Permitted use
+
+Subject to these terms, the Licensor permits you to install and run officially
+distributed copies of the Software for your personal use or your organization's
+internal business purposes. You may make copies reasonably necessary for those
+purposes and for backup, retaining this license and all notices. This includes
+running the companion scripts and connectors supplied with those copies.
+Separately agreed written commercial terms govern any features or services
+provided under those terms.
+
+This license does not grant access to private source code or permission to
+distribute it. Access to source code, including access through a repository,
+does not itself grant any additional rights.
+
+3. Restrictions
+
+Except with the Licensor's prior written permission, you may not:
+- distribute, sublicense, sell, rent, lease, or otherwise provide the Software
+  to third parties;
+- provide the Software itself as a hosted or managed service for third parties;
+- modify the Software or create derivative works of it;
+- reverse engineer, decompile, or disassemble the Software, except to the
+  extent applicable law expressly permits this notwithstanding this restriction;
+- remove or alter copyright, license, trademark, or other proprietary notices.
+
+These restrictions do not prohibit using Holler in your own business to produce
+work for customers, nor do they give the Licensor rights in your messages,
+work product, or other data.
+
+4. Separately licensed material and prior releases
+
+Third-party components remain governed by their respective licenses. Those
+licenses control for those components if they conflict with this license.
+Any such components retain their own notices and license terms.
+
+Nothing in this license withdraws or limits rights previously granted under an
+open-source license, including rights in earlier Apache-2.0 releases of Holler
+or in material from those releases incorporated into the Software. Appendix A
+preserves that license. Its inclusion does not license new proprietary material
+under Apache-2.0.
+
+5. Warranty and liability
+
+TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, THE SOFTWARE IS PROVIDED
+"AS IS" AND "AS AVAILABLE", WITHOUT WARRANTIES OF ANY KIND, EXPRESS OR IMPLIED,
+INCLUDING WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE,
+TITLE, AND NON-INFRINGEMENT. TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW,
+THE LICENSOR SHALL NOT BE LIABLE FOR DAMAGES ARISING FROM USE OF OR INABILITY
+TO USE THE SOFTWARE. NOTHING IN THIS LICENSE EXCLUDES LIABILITY OR STATUTORY
+RIGHTS THAT CANNOT LAWFULLY BE EXCLUDED.
+
+6. Other permissions
+
+For permissions beyond this license, contact 72o Labs through
+https://holler.72olabs.ai. No trademark rights are granted by this license.
+
+========================================================================
+Appendix A: License retained for previously Apache-licensed material
+========================================================================
+
+Apache License
                            Version 2.0, January 2004
                         http://www.apache.org/licenses/
 

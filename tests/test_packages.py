@@ -10,6 +10,13 @@ from validate import MARKETPLACE, validate
 
 
 class PackageTests(unittest.TestCase):
+    def test_product_license_preserves_prior_grants(self):
+        license_text = (MARKETPLACE.parents[1] / "LICENSE").read_text()
+        self.assertTrue(license_text.startswith("Holler Proprietary Software License\n"))
+        self.assertIn("Appendix A: License retained", license_text)
+        self.assertIn("Apache License", license_text)
+        self.assertIn("Nothing in this license withdraws or limits rights previously granted", license_text)
+
     def test_all_packages(self):
         self.assertEqual(validate(), 3)
 
