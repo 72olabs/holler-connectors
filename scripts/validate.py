@@ -42,6 +42,8 @@ def validate(root=MARKETPLACE):
             path = package / overlay
             if path.exists():
                 plugin = json.loads(path.read_text())
+                if overlay == ".codex-plugin/plugin.json" and plugin.get("license") != "Proprietary":
+                    raise ValueError(f"Invalid product license: {name}")
                 if plugin["name"] != manifest["plugin_name"] or plugin["version"] != manifest["connector_version"]:
                     raise ValueError(f"Plugin identity/version mismatch: {name}")
         count += 1
