@@ -21,8 +21,8 @@
     "skills/holler/SKILL.md",
     "skills/holler-setup/SKILL.md"
   ],
-  "package_hash": "sha256:19c1b659dd9bd2fc64739f20bb4f7bb2c62dd39d6f934d0f6af4f44c512085fe",
-  "tool_surface_hash": "sha256:e8025bcdfe5285fa10637a13c3bbc4c353b9532a5af222f308345636d4485eb5",
+  "package_hash": "sha256:d211a07eab9f29ad6b3443ca747705eaa5e35d78d1b6a3d7958e5b8c282f8144",
+  "tool_surface_hash": "sha256:f3cfd851684abbe70e4d5badc3c5e4ff2d8f95d994330e49b11eef2d0ea4211d",
   "mcp_server_name": "holler",
   "claude_tool_prefix": "mcp__plugin_holler_holler__",
   "tools": [
@@ -49,6 +49,7 @@
     {"name": "holler_channel_ack", "class": "idempotent-write"},
     {"name": "holler_channel_extend", "class": "idempotent-write"},
     {"name": "holler_channel_nack", "class": "leased-write"},
+    {"name": "holler_channel_post", "class": "idempotent-write"},
     {"name": "holler_thread_follow", "class": "idempotent-write"},
     {"name": "holler_thread_unfollow", "class": "idempotent-write"},
     {"name": "holler_channel_set_mode", "class": "idempotent-write"},
