@@ -1,17 +1,20 @@
 name: Connector CI
+# validate.py and the unit tests are pure Python, so Linux is enough. No rerun
+# on push to main: the strict required check already tests the up-to-date tree.
 on:
-  push:
-    branches: [main]
   pull_request:
+  workflow_dispatch:
 permissions:
   contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   packages:
-    name: packages (${{ matrix.os }})
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-    runs-on: ${{ matrix.os }}
+    # The name is a required status check on main.
+    name: packages (ubuntu-latest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
         with:
