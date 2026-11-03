@@ -1,5 +1,6 @@
 from pathlib import Path
 import shutil
+import json
 import subprocess
 import sys
 import tempfile
@@ -19,6 +20,18 @@ class PackageTests(unittest.TestCase):
 
     def test_all_packages(self):
         self.assertEqual(validate(), 3)
+
+    def test_codex_hook_events_match_manifest_independently_of_asset_hash(self):
+        for event in ("SessionStart", "SessionEnd", "PostToolUse", "Stop"):
+            with self.subTest(event=event), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory) / "marketplace"
+                shutil.copytree(MARKETPLACE, root)
+                path = root / "plugins/holler/hooks/hooks.json"
+                hooks = json.loads(path.read_text())
+                del hooks["hooks"][event]
+                path.write_text(json.dumps(hooks))
+                with self.assertRaisesRegex(ValueError, "hook events"):
+                    validate(root)
 
     def test_changed_asset_rejected(self):
         with tempfile.TemporaryDirectory() as directory:
