@@ -19,8 +19,8 @@
     "skills/holler/SKILL.md",
     "skills/holler-setup/SKILL.md"
   ],
-  "package_hash": "sha256:f2c99b7fa98d2829645d970e46a956e99c2a035c8dabb59db69a517b7d4d990a",
-  "tool_surface_hash": "sha256:f3cfd851684abbe70e4d5badc3c5e4ff2d8f95d994330e49b11eef2d0ea4211d",
+  "package_hash": "sha256:5d39092f34cef7143f8b023ee38a741205537c4ea52f15d1d2e66fabbbd8f08e",
+  "tool_surface_hash": "sha256:f562daf00e7831b90b19e68129b724b34d84bcffc4d8915705be0b7d29c3d8a0",
   "mcp_server_name": "holler",
   "tools": [
     {"name": "bus_send", "class": "idempotent-write"},
@@ -50,7 +50,11 @@
     {"name": "holler_thread_follow", "class": "idempotent-write"},
     {"name": "holler_thread_unfollow", "class": "idempotent-write"},
     {"name": "holler_channel_set_mode", "class": "idempotent-write"},
-    {"name": "holler_channel_digest_mark", "class": "idempotent-write"}
+    {"name": "holler_channel_digest_mark", "class": "idempotent-write"},
+    {"name": "holler_channel_discover", "class": "read-only"},
+    {"name": "holler_channel_join", "class": "idempotent-write"},
+    {"name": "holler_channel_leave", "class": "idempotent-write"},
+    {"name": "holler_channel_request_access", "class": "idempotent-write"}
   ],
   "profiles": [
     {"name": "async-peer", "requires_wake": false, "description": "Durable messaging with visible polling fallback."},
