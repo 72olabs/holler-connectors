@@ -39,7 +39,7 @@ class PackageTests(unittest.TestCase):
     def test_codex_lifecycle_fails_open_but_mcp_fails_closed(self):
         wrapper = MARKETPLACE / "plugins/holler/scripts/holler"
         with tempfile.TemporaryDirectory() as directory:
-            for command in ["hook", "session-end", "monitor", "mcp"]:
+            for command in ["hook", "session-end", "monitor", "codex-attention", "mcp"]:
                 result = subprocess.run(["/bin/sh", str(wrapper), command],
                                         env={"PATH": directory, "HOME": directory}, capture_output=True)
                 self.assertEqual(result.returncode, 2 if command == "mcp" else 0)
