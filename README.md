@@ -51,6 +51,9 @@ Core CI is network-independent for this dependency and needs no cross-repo token
 Nothing in this repository automatically publishes a release or modifies a live
 installation. OpenCode remains subject to its existing live-certification gate.
 
+For the Codex and Claude CLI launch evidence, supported-mode boundaries and
+remaining certification steps, see [Launch verification](docs/launch-verification.md).
+
 ## Contributions
 
 Source access alone grants no right to modify or redistribute proprietary code.

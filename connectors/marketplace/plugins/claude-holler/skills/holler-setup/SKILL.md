@@ -24,6 +24,8 @@ holler connector setup --harness claude --attention <hook-long-poll|startup-only
 
 Advanced setup defaults to preview-only. Show the resulting plan and apply only after the user authorizes the reported changes. Run the reported doctor command when diagnosis or certification is requested. `CONFIGURED` proves static setup only; use a real wake/claim/ack canary before describing the connector as `READY`.
 
+For live attention, an interactive Claude session uses the packaged `asyncRewake` monitor, rearmed by `Stop` and `StopFailure`. One-shot print and SDK entrypoints keep startup registration, hydration and MCP access but skip the live monitor so it cannot hold the process open after its response. A successful print-mode claim/ack proves that path only; it does not certify an idle interactive wake. Check the installed connector manifest for the tested client version and certify the exact release artifact and client pair before making a compatibility claim.
+
 The native Claude Channels adapter remains research-only and is not included in this package. Never instruct users to add `--channels` for Holler or modify organization channel policy.
 
 Setup records the absolute Holler executable and connector binding. Starting plain `claude` therefore loads the persisted actor, routing, socket, and attention selection even when the plugin process has a minimal `PATH`. Plugin processes from one Claude process derive the same immutable run automatically.
@@ -36,6 +38,6 @@ holler connector launch --harness claude --actor <actor> -- [additional claude a
 
 The launcher creates a fresh random run identity and supplies the selected adapter. Explicit launcher values always override persisted plain-session defaults.
 
-New product installations use allocated naming so concurrent sessions receive `actor`, `actor-2`, and so on; rerunning setup preserves an existing legacy selection. Use `--name-mode exact` when one durable actor must refuse a second live run and add launcher-only `--takeover` only for a deliberate supersession. Add `--launch-tag <stable-tag>` when a supervisor needs a restarted process to reclaim its previous allocation. Never generate takeover from an agent tool call.
+New product installations use allocated naming: each independent session receives an opaque canonical actor such as `claude-a7f3c2`. A resumed harness session can reclaim its allocation; rerunning setup preserves an existing legacy selection. The first authoritative startup claims the configured `<project>-claude` alias if it is absent. A concurrent session keeps its exact actor address and asks the operator before changing an existing route. Use `--name-mode exact` when one durable actor must refuse a second live run and add launcher-only `--takeover` only for a deliberate supersession. Add `--launch-tag <stable-tag>` when a supervisor needs a restarted process to reclaim its previous allocation. Never generate takeover from an agent tool call.
 
 Treat actor identity as an inbox identity, not a display name. In legacy mode concurrent sessions using one actor are competing consumers and the first successful claim owns each message. Prefer allocate mode when the user expects each session to be independently addressable.

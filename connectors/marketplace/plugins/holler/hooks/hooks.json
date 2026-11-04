@@ -27,6 +27,33 @@
           }
         ]
       }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${PLUGIN_ROOT}/scripts/holler\" codex-attention --event PostToolUse",
+            "statusMessage": "Checking Holler attention",
+            "additionalContextLimit": 1000,
+            "timeout": 5
+          }
+        ],
+        "matcher": ".*"
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${PLUGIN_ROOT}/scripts/holler\" codex-attention --event Stop",
+            "statusMessage": "Checking Holler attention",
+            "additionalContextLimit": 1000,
+            "timeout": 5
+          }
+        ]
+      }
     ]
   }
 }

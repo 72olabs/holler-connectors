@@ -21,6 +21,20 @@ def validate(root=MARKETPLACE):
         manifest = json.loads((package / "connector.json").read_text())
         if manifest["harness"] != harness or manifest["schema_version"] != 1:
             raise ValueError(f"Invalid identity/schema: {name}")
+        if harness == "codex":
+            event_names = {"SessionStart": {"startup", "resume", "clear", "compact"},
+                           "SessionEnd": {"end"}, "PostToolUse": {"post_tool_use"}, "Stop": {"stop"}}
+            hooks = json.loads((package / "hooks/hooks.json").read_text())["hooks"]
+            lifecycle = manifest["lifecycle_events"]
+            if set(hooks) != set(event_names) or set(lifecycle) != set().union(*event_names.values()):
+                raise ValueError("Codex hook events and lifecycle contract do not match")
+            starts = set().union(*(set(entry.get("matcher", "").split("|")) for entry in hooks["SessionStart"]))
+            if starts != event_names["SessionStart"]:
+                raise ValueError("Codex SessionStart hook events and lifecycle contract do not match")
+            for event in ("PostToolUse", "Stop"):
+                commands = [hook["command"] for entry in hooks[event] for hook in entry["hooks"]]
+                if not commands or not all(command.endswith(" codex-attention --event " + event) for command in commands):
+                    raise ValueError(f"Codex {event} hook events and attention command do not match")
         digest = hashlib.sha256()
         assets = manifest["required_assets"]
         if len(assets) != len(set(assets)):
