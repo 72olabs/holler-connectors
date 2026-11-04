@@ -216,7 +216,10 @@ evidence exists. Historical Claude test pins remain historical evidence.
 The corresponding controller change validates the exact packaged two-hook
 legacy or four-hook delivery contract before driving the real review UI, and
 binds the resulting hashes to the artifact in C0/scale-out attestation. It pins
-stopped-database inspection to schema 23 and its managed tables.
+stopped-database inspection to schema 24 and its managed tables: room access
+took schema 23, so the Codex hook receipts are schema 24. A controller still
+pinned to 23 rejects this candidate's C25 receipt projection; the bump is in
+daytona-runners#11 and must land in the pinned controller before C25 runs.
 
 New C25 is a bounded one-turn live Codex probe: inject synthetic mail during
 a read-only shell tool sequence, require MCP acknowledgement before the second
