@@ -8,7 +8,7 @@
    Use the companion core adapter handoff for Codex/OpenCode when certifying
    independently patched adapters.
 4. Run `python3 scripts/package.py --version VERSION`. The archive includes only
-   the connector binary, plugin assets, license, notice, and README. Publish
+   the connector binary, plugin assets, licenses, notices, contributor/security policies, and documentation. Publish
    checksums alongside each archive. Build on each supported OS/architecture.
 5. Review the repository's full history and tracked files before making it public.
    This change does not publish a repository or artifact. Confirm dependency
@@ -21,3 +21,7 @@ snapshot. Coordinate that pin through core's existing vendor/check process.
 Future core releases may consume the public adapter packages directly; the
 subprocess protocol already permits independent binary replacement without a
 Go module dependency on private source.
+
+Before changing repository visibility, verify the security contact in SECURITY.md,
+scan all Git history for secrets, and review historical private infrastructure links.
+A clean automated scan is evidence, not a guarantee of absence.

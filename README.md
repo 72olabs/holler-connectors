@@ -7,7 +7,19 @@ configuration, and wake adapters without access to private core source.
 The connector is licensed under Apache-2.0. Holler core is distributed separately
 under its own terms. This repository does not contain a daemon or database engine.
 
+## Release status
+
+This is a source preview for terminal sessions. A certified binary release and
+a downloadable compatible Holler core artifact are release prerequisites, not
+provided by this repository. Managed desktop-agent resume is not supported by
+the standalone hooks yet; see [compatibility](docs/COMPATIBILITY.md).
+
 ## Build and test
+
+```sh
+git clone https://github.com/72olabs/holler-connectors.git
+cd holler-connectors
+```
 
 Requirements: Go 1.26+, Python 3, Node.js 22+, and macOS or Linux. Unit tests use temporary
 homes, fake harnesses, and socket fixtures; no vendor login or model calls.
@@ -26,6 +38,7 @@ Install the core binary separately. If its daemon is already running, set
 `HOLLER_SOCKET` to that instance's socket. Otherwise start a dedicated instance:
 
 ```sh
+mkdir -p "$HOME/.holler"
 hollerd --db "$HOME/.holler/holler.db" --socket "$HOME/.holler/holler.sock"
 export HOLLER_SOCKET="$HOME/.holler/holler.sock"
 ./dist/holler-connector status
@@ -83,3 +96,5 @@ reads the database. Real harness wake/trust behavior still needs live validation
 
 See [compatibility and boundaries](docs/COMPATIBILITY.md),
 [contributing](CONTRIBUTING.md), and [release steps](docs/RELEASING.md).
+
+Report vulnerabilities privately to **security@72olabs.ai**; see [security policy](SECURITY.md).

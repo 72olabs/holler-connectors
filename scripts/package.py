@@ -28,7 +28,9 @@ with tempfile.TemporaryDirectory(prefix='hc-package-') as tmp:
     flags = f'-X github.com/72olabs/holler-connectors/buildinfo.Version={a.version} -X github.com/72olabs/holler-connectors/buildinfo.Commit={commit} -X github.com/72olabs/holler-connectors/buildinfo.Dirty={str(dirty).lower()}'
     subprocess.run(['go', 'build', '-trimpath', '-ldflags', flags, '-o', str(stage/'bin/holler-connector'), './cmd/holler-connector'], cwd=root, check=True)
     shutil.copytree(root/'connectors/marketplace', stage/'share/holler/marketplace')
-    for file in ('LICENSE', 'NOTICE', 'README.md'):
+    shutil.copytree(root/'docs', stage/'docs')
+    shutil.copytree(root/'third_party', stage/'third_party')
+    for file in ('LICENSE', 'NOTICE', 'README.md', 'CONTRIBUTING.md', 'SECURITY.md'):
         shutil.copyfile(root/file, stage/file)
     archive = dist/(name+'.tar.gz')
     with tarfile.open(archive, 'w:gz') as tar:
