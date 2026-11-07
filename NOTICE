@@ -1,0 +1,13 @@
+Holler Connectors
+Copyright 2026 72o Labs
+
+Connector runtime source extracted from 72olabs/holler at
+ca0bb9c1a33d090d9823950764223642096ab5e1.
+Plugin packages based on 72olabs/holler-connectors at
+6dc3cea798f14d686961b5bdffa106d16b9f7f96.
+
+This repository is licensed under Apache-2.0. This license does not cover
+separately distributed Holler core binaries or private source repositories.
+Go dependencies retain their respective licenses; versions are pinned in go.mod
+and go.sum. No private daemon, database, gateway, or agent-runtime source is
+included here.

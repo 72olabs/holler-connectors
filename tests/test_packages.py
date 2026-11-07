@@ -11,12 +11,12 @@ from validate import MARKETPLACE, validate
 
 
 class PackageTests(unittest.TestCase):
-    def test_product_license_preserves_prior_grants(self):
+    def test_open_source_license_and_core_boundary(self):
         license_text = (MARKETPLACE.parents[1] / "LICENSE").read_text()
-        self.assertTrue(license_text.startswith("Holler Proprietary Software License\n"))
-        self.assertIn("Appendix A: License retained", license_text)
         self.assertIn("Apache License", license_text)
-        self.assertIn("Nothing in this license withdraws or limits rights previously granted", license_text)
+        self.assertNotIn("Holler Proprietary Software License", license_text)
+        notice = (MARKETPLACE.parents[1] / "NOTICE").read_text()
+        self.assertIn("does not cover", notice)
 
     def test_all_packages(self):
         self.assertEqual(validate(), 3)

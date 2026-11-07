@@ -1,6 +1,5 @@
 name: Connector CI
-# validate.py and the unit tests are pure Python, so Linux is enough. No rerun
-# on push to main: the strict required check already tests the up-to-date tree.
+# The existing packages check remains stable for branch protection.
 on:
   pull_request:
   workflow_dispatch:
@@ -24,3 +23,26 @@ jobs:
           python-version: '3.12'
       - run: python3 scripts/validate.py
       - run: python3 -m unittest discover -s tests -v
+
+  runtime:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: ./scripts/check.sh
+      - run: go test -race ./...
+      - run: python3 scripts/package.py --version ci
