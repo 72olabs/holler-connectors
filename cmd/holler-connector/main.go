@@ -1192,6 +1192,7 @@ func runHook(ctx context.Context, args []string, stdin io.Reader, stdout, stderr
 	if err != nil {
 		return writeDegradedHook(stdout, stderr, err)
 	}
+	recordAgentSession(hookCtx, binding, *actor, *harness, sessionID, payload, stderr)
 	if predecessor := client.Identity().AdoptedPredecessor; predecessor != "" {
 		output.HookSpecificOutput.AdditionalContext += fmt.Sprintf(
 			" Holler assigned the fresh actor identity %q because the previous identity %q was permanently adopted. The previous inbox remains with its adopter; use the fresh identity for this session.",
@@ -1407,6 +1408,9 @@ func runConnector(ctx context.Context, args []string, stdin io.Reader, stdout, s
 		runtimePath := flags.String("runtime-path", "", "connector runtime binary record; defaults to ~/.holler/bin-path")
 		apply := flags.Bool("apply", false, "apply the reported installation and configuration changes")
 		if err := flags.Parse(args[1:]); err != nil {
+			return err
+		}
+		if err := setupDefaults(flags, *harness, *configPath); err != nil {
 			return err
 		}
 		executable, executableErr := os.Executable()
