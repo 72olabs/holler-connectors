@@ -3,6 +3,20 @@ name: holler-setup
 description: Installs, configures, diagnoses, or changes the OpenCode Holler connector and its native-prompt or startup-only attention mode. Use when a user asks to set up Holler, make OpenCode talkable, change wake behavior, or troubleshoot connector readiness.
 ---
 
+## Standalone open-source runtime
+
+When using `holler-connector` with a separately installed core binary, use
+`holler-connector connector setup --harness HARNESS` to preview configuration,
+then add `--apply` to install it. Launch with
+`holler-connector connector launch --harness HARNESS`. Substitute this plugin's
+harness name for HARNESS. Use `holler-connector connector doctor` for diagnostics.
+The daemon must already be running; this executable does not install or supervise
+core. Setup records its own executable for hook/MCP launches. Do not run the
+private `holler setup` command afterward unless intentionally switching back to
+that runtime. The integrated-core commands below apply to installations using
+the private `holler` CLI, not to the standalone executable.
+
+
 # Holler Setup
 
 Use `holler connector setup --harness opencode`; do not edit OpenCode configuration from memory. `native-prompt` submits a reference-only asynchronous prompt to the active session. `startup-only` provides durable hydration without live wakeups.

@@ -1,13 +1,13 @@
 {
   "name": "holler",
-  "version": "0.8.3",
+  "version": "0.9.0-preview.1",
   "description": "Durable local communication between terminal agents.",
   "author": {
     "name": "72o Labs"
   },
-  "homepage": "https://github.com/72olabs/holler",
-  "repository": "https://github.com/72olabs/holler",
-  "license": "Proprietary",
+  "homepage": "https://github.com/72olabs/holler-connectors",
+  "repository": "https://github.com/72olabs/holler-connectors",
+  "license": "Apache-2.0",
   "keywords": [
     "agents",
     "communication",

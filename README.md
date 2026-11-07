@@ -1,61 +1,85 @@
-# Holler connectors (private)
+# Holler Connectors
 
-Source of truth for the installable Codex, Claude Code and OpenCode connector
-packages. This is a private repository; it is not a new public marketplace.
+Open-source Claude Code, Codex, and OpenCode integrations for a separately
+installed Holler core binary. Build and debug session hooks, MCP tools,
+configuration, and wake adapters without access to private core source.
 
-## Boundary
+The connector is licensed under Apache-2.0. Holler core is distributed separately
+under its own terms. This repository does not contain a daemon or database engine.
 
-`connectors/marketplace/` contains the existing plugin identities, hook wiring,
-MCP launch configuration, shell launchers, skills and connector manifests.
-These files were extracted byte-for-byte from `72olabs/holler` commit
-`2f3bad0b27780b6f21180dcda7ae5c366ce8cc02` (0.8.0). No core source or source
-repository history was copied. Current development is proprietary under
-[LICENSE](LICENSE), matching Holler's product terms. Earlier Apache grants
-remain intact; the original license text is retained for that material.
-This licensing change does not alter the extracted package bytes or manifests.
+## Build and test
 
-Core runtime, setup policy, identity enforcement, queue adapters, doctor and
-certification remain in the private `72olabs/holler` repository. This extraction
-does not add support for a new harness or change installed users' configuration.
-
-## Development and validation
+Requirements: Go 1.26+, Python 3, Node.js 22+, and macOS or Linux. Unit tests use temporary
+homes, fake harnesses, and socket fixtures; no vendor login or model calls.
 
 ```sh
-python3 scripts/validate.py
-python3 -m unittest discover -s tests -v
+./scripts/check.sh
+./dist/holler-connector version
 ```
 
-Package versions and hashes still need to match core's compiled manifests.
-This is source ownership separation, not independent runtime compatibility yet.
-Change packages here, validate, and merge through a PR. Then in a clean core
-checkout import the reviewed full commit SHA:
+Build output is `dist/holler-connector`. Keep its absolute path stable after
+installation. Existing plugin identities stay unchanged.
+
+## Use with a core binary
+
+Install the core binary separately. If its daemon is already running, set
+`HOLLER_SOCKET` to that instance's socket. Otherwise start a dedicated instance:
 
 ```sh
-python3 scripts/connectors/vendor.py --source /path/to/holler-connectors --commit FULL_COMMIT_SHA
-python3 scripts/connectors/vendor.py --check
-go test ./internal/connector
+hollerd --db "$HOME/.holler/holler.db" --socket "$HOME/.holler/holler.sock"
+export HOLLER_SOCKET="$HOME/.holler/holler.sock"
+./dist/holler-connector status
 ```
 
-The core PR reviews the pinned commit, per-file hashes and any required compiled
-manifest changes together. Do not edit the vendored copy directly. For a skill or
-hook change, refresh its package hash and the matching core manifest together;
-never bypass the manifest check. Runtime/permission changes require appropriate
-live certification and operator trust, not just this repository's static tests.
+Do not start a second daemon against an active instance's database/socket.
 
-## Distribution
+Preview connector setup, then apply the displayed changes:
 
-Users continue to run `brew install 72olabs/tap/holler` and `holler setup codex`
-or `holler setup claude`. Core packages its verified, pinned connector snapshot
-under `share/holler/marketplace`; consumers do not clone this private repository.
-Core CI is network-independent for this dependency and needs no cross-repo token.
-Nothing in this repository automatically publishes a release or modifies a live
-installation. OpenCode remains subject to its existing live-certification gate.
+```sh
+./dist/holler-connector connector setup --harness claude
+./dist/holler-connector connector setup --harness claude --apply
+./dist/holler-connector connector launch --harness claude
+```
 
-For the Codex and Claude CLI launch evidence, supported-mode boundaries and
-remaining certification steps, see [Launch verification](docs/launch-verification.md).
+Replace `claude` with `codex` or `opencode` as appropriate. Setup requires that
+harness to be installed. It records the public executable in `~/.holler/bin-path`
+and installs/configures the packaged plugins. The wrappers use that record even
+when hooks have a minimal PATH. `HOLLER_BIN` can explicitly override the runtime.
+Do not override it with the private CLI when testing the public runtime.
 
-## Contributions
+For manual configuration, point the plugin's `HOLLER_BIN` at the absolute path
+to `holler-connector`. `go install` alone does not install plugin assets; use the
+release archive layout or pass `--marketplace /absolute/path/to/connectors/marketplace`.
+OpenCode also accepts `--package-source` for its plugin directory.
 
-Source access alone grants no right to modify or redistribute proprietary code.
-Contributions require a separate written agreement with 72o Labs establishing
-the necessary rights before acceptance. Previously granted rights are unchanged.
+## Independently patch wake delivery
+
+Claude's long-poll monitor runs in this public executable. Codex/OpenCode push
+wakes originate in the daemon. A core build supporting the optional adapter
+handoff must be started with:
+
+```sh
+hollerd --db "$HOME/.holler/holler.db" --socket "$HOME/.holler/holler.sock" \
+  --connector-binary /absolute/path/to/holler-connector
+```
+
+The daemon still authorizes deliveries and owns retries. The public adapter
+translates an authorized reference into a harness notification. Without this
+flag, existing core binaries use their built-in push adapters: changing the
+public adapter alone will not replace them. The flag is implemented in the
+companion core change; do not assume an already installed release supports it.
+
+## Verify a core artifact
+
+```sh
+python3 scripts/smoke-core.py --daemon /absolute/path/to/hollerd
+```
+
+Add `--external-wakes` to also require support for the adapter-handoff flag.
+
+This starts the supplied binary in an isolated temporary home and checks the
+wire handshake, send/inbox/claim/ack, and MCP initialize/tool discovery. It never
+reads the database. Real harness wake/trust behavior still needs live validation.
+
+See [compatibility and boundaries](docs/COMPATIBILITY.md),
+[contributing](CONTRIBUTING.md), and [release steps](docs/RELEASING.md).
