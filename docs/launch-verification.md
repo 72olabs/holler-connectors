@@ -1,4 +1,11 @@
-# Codex and Claude launch verification
+# Historical internal launch verification
+
+This records an earlier internal release campaign and references private core
+and infrastructure repositories. Those tools are not required to contribute.
+For the standalone public runtime, use [public verification](VERIFICATION.md)
+and [release preparation](RELEASING.md). The historical scenarios below are not
+a certificate for the current connector.
+
 
 This is the verification contract for HOL-15, HOL-69, HOL-70 and HOL-71. It is
 not a live compatibility certificate. Source changes, static tests and a

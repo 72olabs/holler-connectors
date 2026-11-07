@@ -1,6 +1,8 @@
 name: Connector CI
 # The existing packages check remains stable for branch protection.
 on:
+  push:
+    branches: [main]
   pull_request:
   workflow_dispatch:
 permissions:
