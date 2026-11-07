@@ -56,16 +56,21 @@ compatibility. The new public executable is selected explicitly; this extraction
 does not silently change installed agents. Core's existing vendor workflow can
 continue pinning connector package assets. Do not edit that vendored copy directly.
 
-## Managed agent limitation
+## Managed-agent session receipts
 
-The private startup hook has an additional `recordAgentSession` side effect that
-writes managed-agent resume receipts through its internal agent runtime. The
-standalone public hook intentionally does not access that private state. Terminal
-connectivity works without it. Do not replace the hook for managed desktop agents
-that rely on automatic resume until core exposes a supported receipt endpoint.
-This repository does not implement desktop commands, service supervision, or
-managed agent start/stop/resume. Experimental host injection is not a supported
-public runtime mode; use the ordinary Claude hook-long-poll mode.
+A supporting core-managed launch sets `HOLLER_SESSION_RECORDER` to its absolute
+core CLI path. After successful SessionStart registration the public hook invokes
+`<core> session-receipt` with a version-1 JSON envelope on stdin, capped at 64 KiB.
+The `receipt` object carries LaunchTag, Actor, RunID, Harness, SessionID,
+WorkingDir, TranscriptPath, CodexHome, and Generation. It contains metadata only,
+not transcript contents or hook prose. Core verifies the environment's launch,
+run and generation and the stored lifecycle/identity/history constraints before
+recording evidence. The hook has a five-second deadline and a fixed, body-free
+advisory on failure; messaging continues when resume evidence is unavailable.
+
+Ordinary terminal hooks without the recorder variable make no receipt call.
+Older core-managed launches must keep their private hooks until they provide
+this interface. Managed lifecycle and private state storage remain in core.
 
 ## Terminal session verification
 
@@ -82,5 +87,4 @@ plugin tests cover registration, context injection, compaction, and unregistrati
 The extracted monitor was corrected to stop on stale/adopted identity errors
 returned during attach or wait, rather than retrying them indefinitely. These
 checks exercise client behavior; they do not replace live harness certification.
-Managed-agent resume receipts are a separate deferred feature and do not block
-the terminal-session connector scope.
+Managed receipts use the separate core handoff described above.

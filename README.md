@@ -11,8 +11,8 @@ under its own terms. This repository does not contain a daemon or database engin
 
 This is a source preview for terminal sessions. A certified binary release and
 a downloadable compatible Holler core artifact are release prerequisites, not
-provided by this repository. Managed desktop-agent resume is not supported by
-the standalone hooks yet; see [compatibility](docs/COMPATIBILITY.md).
+provided by this repository. Managed desktop-agent resume requires a core launch providing the receipt
+interface; see [compatibility](docs/COMPATIBILITY.md).
 
 ## Build and test
 
