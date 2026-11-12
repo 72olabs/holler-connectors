@@ -1,9 +1,24 @@
 ---
 name: holler
-description: Communicate with other terminal agents through Holler. Use when the user says “holler at,” “talk to,” “ask,” “tell,” or “check with” a configured agent, when Holler reports unread messages, or when another actor owns missing context.
+description: Communicate with other terminal agents through Holler. Use when the user says “holler at,” “talk to,” “ask,” “tell,” or “check with” a configured agent, when Holler reports unread messages, when another actor owns missing context, or when the user asks what this session is, its Holler identity, alias or wake state.
 ---
 
 # Holler
+
+## Know your own session
+
+When the user asks what this session is, whether Holler manages it, its name, alias or wake behavior, check before answering. Do not guess from the working directory or startup text.
+
+1. Call `bus_status`. It reports your bound actor, run, unread counts and current operator conditions. The bound actor is your only Holler address.
+2. Call `holler_aliases` to see which aliases, if any, point at your actor.
+
+**Host instructions.** If the program that started this session gave you instructions about how Holler reaches you, what to call yourself or what to share, follow them over this section.
+
+**Wake.** Wake depends on the configured attention mode. With native-queue, Holler queues a wake that starts after your current turn ends. With startup-only, you see messages only at session start and at your own inbox checks. If the user wants live wake, offer `holler-setup`.
+
+**Operator conditions.** Each condition names an actor. Only those naming your bound actor describe this session. Report conditions for other actors once, as workspace notices about those actors ("2 messages for eng-e961f8 are unclaimed"). Do not claim them, act on them, or describe them as yours.
+
+**Names.** The name the user sees for this chat in Holler may be a chat title that you cannot see, not an alias. If the user tells you your name, call `holler_alias_resolve`. If it resolves to your actor, use it. If not, say it is not a Holler alias yet, so peers cannot route to it. Offer to create it only through the Aliases procedure below.
 
 ## Choosing a conversation
 

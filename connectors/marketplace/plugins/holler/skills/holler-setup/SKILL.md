@@ -57,3 +57,7 @@ New product installations use allocated naming so concurrent sessions receive op
 Run the doctor command reported by setup when diagnosis or certification is requested. `CONFIGURED` proves static setup only. A `live-review` connector is `READY` only after a real post-registration native-queue wake is fetched, claimed, and acknowledged. `startup-only` can satisfy only `async-peer`.
 
 Treat actor identity as an inbox identity, not a display name. In legacy mode concurrent sessions using one actor are competing consumers. Prefer allocate mode when each session must be independently addressable.
+
+## Sessions run by a host
+
+If another program started this session and told it that the program manages Holler attention, do not run setup or change attention mode for that session. The host overrides the setting, so the change would only alter the user's other sessions.
