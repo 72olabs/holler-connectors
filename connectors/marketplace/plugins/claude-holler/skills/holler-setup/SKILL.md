@@ -55,3 +55,7 @@ The launcher creates a fresh random run identity and supplies the selected adapt
 New product installations use allocated naming: each independent session receives an opaque canonical actor such as `claude-a7f3c2`. A resumed harness session can reclaim its allocation; rerunning setup preserves an existing legacy selection. The first authoritative startup claims the configured `<project>-claude` alias if it is absent. A concurrent session keeps its exact actor address and asks the operator before changing an existing route. Use `--name-mode exact` when one durable actor must refuse a second live run and add launcher-only `--takeover` only for a deliberate supersession. Add `--launch-tag <stable-tag>` when a supervisor needs a restarted process to reclaim its previous allocation. Never generate takeover from an agent tool call.
 
 Treat actor identity as an inbox identity, not a display name. In legacy mode concurrent sessions using one actor are competing consumers and the first successful claim owns each message. Prefer allocate mode when the user expects each session to be independently addressable.
+
+## Sessions run by a host
+
+If another program started this session and told it that the program manages Holler attention, do not run setup or change attention mode for that session. The host overrides the setting, so the change would only alter the user's other sessions.
