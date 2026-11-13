@@ -127,11 +127,11 @@ func (r *Runtime) SessionStart(ctx context.Context, config SessionConfig, input 
 		quoted := untrusted.HookText(clip(alias, startupIDRunes))
 		switch {
 		case claimErr != nil:
-			facts.AliasNote = fmt.Sprintf("Default alias %q was not claimed (%s), so you have no alias.", quoted, untrusted.HookText(clip(claimErr.Error(), startupErrorRunes)))
+			facts.AliasNote = fmt.Sprintf("Default alias %q was not assigned to you (%s).", quoted, untrusted.HookText(clip(claimErr.Error(), startupErrorRunes)))
 		case claim.Alias.Actor == config.Actor:
 			facts.Alias = alias
 		default:
-			facts.AliasNote = fmt.Sprintf("Default alias %q belongs to actor:%s, so you have no alias; use holler_alias_set only if the user asks for one.", quoted, untrusted.HookText(clip(claim.Alias.Actor, startupIDRunes)))
+			facts.AliasNote = fmt.Sprintf("Default alias %q was not assigned to you; it points to actor:%s. Use holler_alias_set only if the user asks for an alias.", quoted, untrusted.HookText(clip(claim.Alias.Actor, startupIDRunes)))
 		}
 	}
 	reader, _ := r.store.(unread.CapabilityReader)
@@ -152,8 +152,9 @@ func (r *Runtime) SessionStart(ctx context.Context, config SessionConfig, input 
 	if catalogRead {
 		facts.Channels = readChannelDirectory(ctx, reader, caps)
 	}
-	facts.Conditions, facts.MoreConditions = ownConditions(ctx, r.store, config.Actor)
-	contextText := FormatStartupContext(facts)
+	presenter, conditions, more := ownConditions(ctx, r.store, config.Actor)
+	facts.Conditions, facts.MoreConditions = conditions, more
+	contextText := presentStartup(ctx, presenter, facts)
 	return HookOutput{HookSpecificOutput: HookSpecificOutput{
 		HookEventName: "SessionStart", AdditionalContext: contextText,
 	}}, nil

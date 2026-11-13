@@ -69,6 +69,13 @@ type ChannelDirectory struct {
 // session specifically. It never includes message ids, bodies, senders or
 // thread titles.
 func FormatStartupContext(f StartupFacts) string {
+	text, _ := formatStartup(f)
+	return text
+}
+
+// formatStartup also reports whether the text shows the summaries of
+// f.Conditions, the only case in which their presentation may be claimed.
+func formatStartup(f StartupFacts) (string, bool) {
 	lines := []string{identityLine(f) + " " + unreadSentence(f.Counts), startupTrustSentence}
 	for _, note := range []string{f.Predecessor, f.AliasNote, f.WakeNote} {
 		if note != "" {
@@ -81,17 +88,45 @@ func FormatStartupContext(f StartupFacts) string {
 	channels, channelsShort := channelLine(f.Channels)
 	// Spend the budget in priority order: notes about this session, then own
 	// conditions, then the directory.
-	for _, choice := range [][3]string{
-		{required, conditions, channels},
-		{required, conditions, channelsShort},
-		{required, conditionsShort, channelsShort},
-		{required, conditionsShort, ""},
+	for _, choice := range []struct {
+		conditions, channels string
+		shown                bool
+	}{
+		{conditions, channels, true},
+		{conditions, channelsShort, true},
+		{conditionsShort, channelsShort, false},
+		{conditionsShort, "", false},
 	} {
-		if text := joinLines(choice[:]...); len(text) <= StartupContextBudget {
-			return text
+		if text := joinLines(required, choice.conditions, choice.channels); len(text) <= StartupContextBudget {
+			return text, choice.shown && len(f.Conditions) > 0
 		}
 	}
-	return joinLines(core, "More Holler start-up notes did not fit; bus_status reports them.")
+	return joinLines(core, "More Holler start-up notes did not fit; bus_status reports them."), false
+}
+
+// presentStartup renders the text and claims presentation for exactly the
+// conditions whose summaries it shows. A condition whose claim is refused is
+// left out and the text rendered again; with fewer conditions the text only
+// gets shorter, so the remaining ones stay shown. A condition replaced by the
+// bus_status pointer, or dropped by the final fallback, is never claimed.
+func presentStartup(ctx context.Context, presenter conditionPresenter, f StartupFacts) string {
+	text, shown := formatStartup(f)
+	if !shown || presenter == nil {
+		return text
+	}
+	kept := f.Conditions[:0:0]
+	for _, c := range f.Conditions {
+		claimed, err := presenter.ClaimConditionPresentation(ctx, c.Kind, c.Subject, c.Generation, 30*time.Second)
+		if err == nil && claimed {
+			kept = append(kept, c)
+		}
+	}
+	if len(kept) == len(f.Conditions) {
+		return text
+	}
+	f.Conditions = kept
+	text, _ = formatStartup(f)
+	return text
 }
 
 func joinLines(parts ...string) string {
@@ -215,19 +250,19 @@ type conditionPresenter interface {
 	ClaimConditionPresentation(context.Context, string, string, int, time.Duration) (bool, error)
 }
 
-// ownConditions returns the active, visible conditions whose subject is this
-// actor. It claims presentation only for the ones it will show, so a
-// condition about another actor is never marked presented by this session.
-// Conditions are computed, stored and acknowledged by the daemon; this only
-// chooses which to show.
-func ownConditions(ctx context.Context, store Store, actor string) ([]bus.OperatorCondition, int) {
+// ownConditions lists the active, visible conditions whose subject is this
+// actor: up to startupConditions to show, and a count of the rest. It claims
+// nothing; presentStartup claims only what the final text shows. Conditions
+// are computed, stored and acknowledged by the daemon; this only chooses which
+// to show.
+func ownConditions(ctx context.Context, store Store, actor string) (conditionPresenter, []bus.OperatorCondition, int) {
 	presenter, ok := store.(conditionPresenter)
 	if !ok {
-		return nil, 0
+		return nil, nil, 0
 	}
 	conditions, err := presenter.ListConditions(ctx, false, 100)
 	if err != nil {
-		return nil, 0
+		return presenter, nil, 0
 	}
 	var shown []bus.OperatorCondition
 	more := 0
@@ -239,11 +274,7 @@ func ownConditions(ctx context.Context, store Store, actor string) ([]bus.Operat
 			more++
 			continue
 		}
-		claimed, err := presenter.ClaimConditionPresentation(ctx, c.Kind, c.Subject, c.Generation, 30*time.Second)
-		if err != nil || !claimed {
-			continue
-		}
 		shown = append(shown, c)
 	}
-	return shown, more
+	return presenter, shown, more
 }
