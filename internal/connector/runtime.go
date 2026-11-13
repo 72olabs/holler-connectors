@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"sort"
 	"strings"
 	"time"
 
@@ -116,8 +117,10 @@ func (r *Runtime) SessionStart(ctx context.Context, config SessionConfig, input 
 		return HookOutput{}, err
 	}
 	facts := StartupFacts{Actor: config.Actor, WakeNote: wakeContext, Predecessor: config.AdoptedPredecessor}
+	defaultAlias, claimedDefault := "", false
 	if config.NameMode == bus.NameModeAllocate {
 		alias := config.ProjectID + "-" + strings.ToLower(config.Harness)
+		defaultAlias = alias
 		digest := sha256.Sum256([]byte(config.Actor + "\x00" + alias))
 		claim, claimErr := r.store.ClaimAliasIfAbsent(ctx, bus.AliasClaimRequest{
 			Alias: alias, Actor: config.Actor, PolicyID: "setup:default-workstream-alias",
@@ -129,10 +132,20 @@ func (r *Runtime) SessionStart(ctx context.Context, config SessionConfig, input 
 		case claimErr != nil:
 			facts.AliasNote = fmt.Sprintf("Default alias %q was not assigned to you (%s).", quoted, untrusted.HookText(clip(claimErr.Error(), startupErrorRunes)))
 		case claim.Alias.Actor == config.Actor:
-			facts.Alias = alias
+			claimedDefault = true
 		default:
 			facts.AliasNote = fmt.Sprintf("Default alias %q was not assigned to you; it points to actor:%s. Use holler_alias_set only if the user asks for an alias.", quoted, untrusted.HookText(clip(claim.Alias.Actor, startupIDRunes)))
 		}
+	}
+	if aliases, ok := actorAliases(ctx, r.store, config.Actor, defaultAlias); ok {
+		facts.Aliases = aliases
+		if len(aliases) > 0 {
+			// The actor already answers to a name; the default alias
+			// going elsewhere is no longer news.
+			facts.AliasNote = ""
+		}
+	} else if claimedDefault {
+		facts.Aliases = []string{defaultAlias}
 	}
 	reader, _ := r.store.(unread.CapabilityReader)
 	var caps []bus.CapabilityDescriptor
@@ -158,6 +171,44 @@ func (r *Runtime) SessionStart(ctx context.Context, config SessionConfig, input 
 	return HookOutput{HookSpecificOutput: HookSpecificOutput{
 		HookEventName: "SessionStart", AdditionalContext: contextText,
 	}}, nil
+}
+
+// aliasLister is the alias listing of the daemon client.
+type aliasLister interface {
+	ListAliases(context.Context) ([]bus.ActorAlias, error)
+}
+
+// actorAliases returns the aliases that point at actor, the one to call it by
+// first: aliases someone chose, most recently changed first, then the
+// generated default alias. ok is false when aliases could not be listed.
+func actorAliases(ctx context.Context, store Store, actor, defaultAlias string) ([]string, bool) {
+	lister, ok := store.(aliasLister)
+	if !ok {
+		return nil, false
+	}
+	all, err := lister.ListAliases(ctx)
+	if err != nil {
+		return nil, false
+	}
+	var own []bus.ActorAlias
+	seen := map[string]bool{}
+	for _, a := range all {
+		if a.Actor == actor && a.Alias != "" && !seen[a.Alias] {
+			seen[a.Alias] = true
+			own = append(own, a)
+		}
+	}
+	sort.SliceStable(own, func(i, j int) bool {
+		if (own[i].Alias == defaultAlias) != (own[j].Alias == defaultAlias) {
+			return own[j].Alias == defaultAlias
+		}
+		return own[i].UpdatedAt.After(own[j].UpdatedAt)
+	})
+	names := make([]string, len(own))
+	for i, a := range own {
+		names[i] = a.Alias
+	}
+	return names, true
 }
 
 func (r *Runtime) SessionEnd(ctx context.Context, config SessionConfig, input io.Reader) error {
