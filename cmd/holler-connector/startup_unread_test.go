@@ -97,6 +97,10 @@ var (
 	}}
 )
 
+var bigManagedItem = map[string]any{"state": "queued", "attempt": 0, "message": map[string]any{
+	"message_id": "managed-big", "body": strings.Repeat("x", 900*1024),
+}}
+
 func TestStartupCountsLegacyAndManagedUnread(t *testing.T) {
 	for _, tc := range []struct {
 		name       string
@@ -121,16 +125,25 @@ func TestStartupCountsLegacyAndManagedUnread(t *testing.T) {
 		{
 			name:       "managed only",
 			daemon:     startupDaemon{legacy: []map[string]any{}, managed: []map[string]any{managedItem}, catalog: currentCatalog},
-			want:       []string{"You have 1 unread message(s)", "1 in conversations (1 claimable)", "holler_channel_inbox", "holler_channel_claim", "holler_channel_ack"},
+			want:       []string{"You have at least 1 unread message(s)", "at least 1 in conversations (1 claimable)", "holler_channel_inbox", "holler_channel_claim", "holler_channel_ack"},
 			reject:     []string{"No unread", "legacy inbox", "bus_inbox", "could not be checked"},
 			hydrations: 1,
 		},
 		{
 			name:       "both",
 			daemon:     startupDaemon{legacy: []map[string]any{legacyItem}, managed: []map[string]any{managedItem}, catalog: currentCatalog},
-			want:       []string{"You have 2 unread message(s)", "1 in the legacy inbox", "1 in conversations", "bus_inbox", "holler_channel_inbox"},
+			want:       []string{"You have at least 2 unread message(s)", " 1 in the legacy inbox", "at least 1 in conversations", "bus_inbox", "holler_channel_inbox"},
 			reject:     []string{"No unread", "could not be checked"},
 			hydrations: 2,
+		},
+		{
+			// Two queued messages with near-maximum bodies: the daemon's size
+			// budget returns one, with no marker that it stopped early.
+			name:       "managed listing cut by body size",
+			daemon:     startupDaemon{legacy: []map[string]any{}, managed: []map[string]any{bigManagedItem}, catalog: currentCatalog},
+			want:       []string{"You have at least 1 unread message(s)", "at least 1 in conversations"},
+			reject:     []string{"No unread", "You have 1 unread"},
+			hydrations: 1,
 		},
 		{
 			name:   "older daemon without list_capabilities",
@@ -159,7 +172,7 @@ func TestStartupCountsLegacyAndManagedUnread(t *testing.T) {
 					t.Errorf("missing %q in:\n%s", want, text)
 				}
 			}
-			for _, reject := range append(tc.reject, "DO-NOT-INJECT", "managed-1", "legacy-1") {
+			for _, reject := range append(tc.reject, "DO-NOT-INJECT", "managed-1", "managed-big", "legacy-1", "xxxx") {
 				if strings.Contains(text, reject) {
 					t.Errorf("unexpected %q in:\n%s", reject, text)
 				}

@@ -166,12 +166,12 @@ func UnreadStartupText(c unread.Counts) string {
 		return "No unread messages were present at session start."
 	}
 	var out strings.Builder
-	fmt.Fprintf(&out, "You have %s unread message(s) at session start.", count(c.Total(), c.LegacyTruncated || c.ManagedTruncated))
+	fmt.Fprintf(&out, "You have %s unread message(s) at session start.", count(c.Total(), c.LegacyTruncated || c.ManagedLowerBound))
 	if c.Legacy > 0 {
 		fmt.Fprintf(&out, " %s in the legacy inbox (%d claimable): call bus_inbox, then bus_ack each with its lease token after processing.", count(c.Legacy, c.LegacyTruncated), c.LegacyAvailable)
 	}
 	if c.Managed > 0 {
-		fmt.Fprintf(&out, " %s in conversations (%d claimable): list them with holler_channel_inbox, claim each with holler_channel_claim, and holler_channel_ack it after processing.", count(c.Managed, c.ManagedTruncated), c.ManagedAvailable)
+		fmt.Fprintf(&out, " %s in conversations (%d claimable): list them with holler_channel_inbox, claim each with holler_channel_claim, and holler_channel_ack it after processing.", count(c.Managed, c.ManagedLowerBound), c.ManagedAvailable)
 	}
 	if !c.ManagedChecked {
 		out.WriteString(" " + unchecked + ".")

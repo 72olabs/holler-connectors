@@ -39,11 +39,13 @@ func TestBusStatusCountsManagedDeliveries(t *testing.T) {
 		want map[string]interface{}
 	}{
 		{"managed only", &statusFake{catalog: inbox, managed: `[{"state":"queued"}]`},
-			map[string]interface{}{"unread": 1, "available": 1, "legacy_unread": 0, "managed_unread": 1, "managed_checked": true}},
+			map[string]interface{}{"unread": 1, "available": 1, "legacy_unread": 0, "managed_unread": 1, "managed_checked": true, "counts_truncated": true, "managed_unread_complete": false}},
+		{"empty", &statusFake{catalog: inbox, managed: `[]`},
+			map[string]interface{}{"unread": 0, "managed_checked": true, "counts_truncated": false, "managed_unread_complete": true}},
 		{"both", &statusFake{legacy: []bus.InboxItem{{Available: true}}, catalog: inbox, managed: `[{"state":"queued"}]`},
 			map[string]interface{}{"unread": 2, "available": 2, "legacy_unread": 1, "managed_unread": 1, "managed_checked": true}},
 		{"older daemon", &statusFake{legacy: []bus.InboxItem{{Available: true}}},
-			map[string]interface{}{"unread": 1, "legacy_unread": 1, "managed_unread": 0, "managed_checked": false}},
+			map[string]interface{}{"unread": 1, "legacy_unread": 1, "managed_unread": 0, "managed_checked": false, "counts_truncated": false, "managed_unread_complete": false}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			s := &Server{store: tc.fake, config: Config{Actor: "a", RunID: "r"}}

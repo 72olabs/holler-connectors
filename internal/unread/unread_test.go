@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -54,7 +55,7 @@ func TestCountReadsBothInboxesWithoutConsuming(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := Counts{Legacy: 2, LegacyAvailable: 1, ManagedChecked: true, Managed: 3, ManagedAvailable: 2}
+	want := Counts{Legacy: 2, LegacyAvailable: 1, ManagedChecked: true, Managed: 3, ManagedAvailable: 2, ManagedLowerBound: true}
 	if got != want || got.Total() != 5 {
 		t.Fatalf("got %+v want %+v", got, want)
 	}
@@ -90,7 +91,23 @@ func TestCountReturnsLegacyErrorAndMarksFullPages(t *testing.T) {
 	}
 	raw = raw[:len(raw)-1] + "]"
 	got, err := Count(context.Background(), &bridged{legacyOnly: legacyOnly{items: items}, caps: inboxCatalog, raw: raw}, "a")
-	if err != nil || !got.LegacyTruncated || !got.ManagedTruncated || got.Total() != 2*Limit {
+	if err != nil || !got.LegacyTruncated || !got.ManagedLowerBound || got.Total() != 2*Limit {
 		t.Fatalf("%+v %v", got, err)
+	}
+}
+
+// The daemon also ends channel.inbox at a body-size budget without saying so:
+// with two queued messages whose bodies are near bus.MaxBodyBytes it returns
+// one. A short page is therefore a lower bound; only an empty one is complete.
+func TestManagedCountIsALowerBoundUnlessEmpty(t *testing.T) {
+	body, _ := json.Marshal(strings.Repeat("x", bus.MaxBodyBytes-16))
+	onePage := `[{"state":"queued","message":{"message_id":"m1","body":` + string(body) + `}}]`
+	got, err := Count(context.Background(), &bridged{caps: inboxCatalog, raw: onePage}, "a")
+	if err != nil || got.Managed != 1 || !got.ManagedLowerBound {
+		t.Fatalf("size-cut page reported as complete: %+v %v", got, err)
+	}
+	got, err = Count(context.Background(), &bridged{caps: inboxCatalog, raw: `[]`}, "a")
+	if err != nil || !got.ManagedChecked || got.Managed != 0 || got.ManagedLowerBound {
+		t.Fatalf("empty listing: %+v %v", got, err)
 	}
 }

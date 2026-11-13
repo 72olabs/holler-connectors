@@ -14,8 +14,8 @@ import (
 	"github.com/72olabs/holler-connectors/bus"
 )
 
-// Limit is the page size used for each inbox. A full page means the count is
-// a lower bound.
+// Limit is the page size used for each inbox. A full legacy page means the
+// legacy count is a lower bound; see Counts.ManagedLowerBound for managed.
 const Limit = 100
 
 // ManagedInboxCapability is the daemon read capability behind
@@ -41,7 +41,13 @@ type Counts struct {
 	ManagedChecked   bool
 	Managed          int
 	ManagedAvailable int
-	ManagedTruncated bool
+	// ManagedLowerBound is true when Managed may undercount. channel.inbox
+	// stops at Limit rows and also, on the daemon, once the bodies it has
+	// gathered pass a size budget (1.5 times bus.MaxBodyBytes), and its result
+	// carries no completeness marker. The budget is measured on stored bodies,
+	// which the wire copy may not reproduce byte for byte, so only an empty
+	// listing is known to be complete.
+	ManagedLowerBound bool
 }
 
 // Total is every unread delivery that was counted. When ManagedChecked is
@@ -91,7 +97,7 @@ func countManaged(ctx context.Context, reader CapabilityReader, counts Counts) C
 	now := time.Now()
 	counts.ManagedChecked = true
 	counts.Managed = len(deliveries)
-	counts.ManagedTruncated = len(deliveries) >= Limit
+	counts.ManagedLowerBound = len(deliveries) > 0
 	for _, d := range deliveries {
 		if d.State != "claimed" || d.LeaseExpiresAt == nil || !d.LeaseExpiresAt.After(now) {
 			counts.ManagedAvailable++
