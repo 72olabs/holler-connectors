@@ -102,6 +102,13 @@ The start-up text is composed by `connector.FormatStartupContext` and capped at
 whose subject is the session's own actor; the session claims presentation only
 for the conditions it shows. Other conditions remain in `bus_status`.
 
+The first line names the actor and up to two aliases that point at it, read
+with `list_aliases` (aliases someone chose first, most recently changed first,
+then the generated default alias). A daemon without `list_aliases`, or a failed
+call, falls back to the default alias when this session's claim succeeded. The
+trust sentence (`startupTrustSentence`) is always kept whole; the identity line
+shortens itself and the notes give way to a `bus_status` pointer instead.
+
 ## Terminal session verification
 
 `cmd/holler-connector/session_test.go` uses a framed-JSON socket fixture to verify
