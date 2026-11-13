@@ -7,6 +7,12 @@ configuration, and wake adapters without access to private core source.
 The connector is licensed under Apache-2.0. Holler core is distributed separately
 under its own terms. This repository does not contain a daemon or database engine.
 
+This repository is generated from a private source repository, where the
+connector is developed next to the daemon; each public commit is a sync of
+that source. Issues and pull requests are welcome here. Accepted pull requests
+are imported into the source by hand, with credit, and come back in the next
+sync. See [contributing](CONTRIBUTING.md).
+
 ## Release status
 
 This is a source preview for terminal sessions. A certified binary release and

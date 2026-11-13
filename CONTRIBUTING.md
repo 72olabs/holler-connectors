@@ -1,5 +1,16 @@
 # Contributing
 
+## How this repository is made
+
+This repository is a generated copy of a directory in a private source
+repository, where the connector is developed next to the daemon. Each public
+commit is a sync of that directory, so the history here is not the development
+history. Pull requests are welcome: a maintainer imports an accepted change
+into the source by hand, keeping your authorship, and it comes back here in
+the next sync, after which your pull request is closed with a link to it.
+
+## Changes
+
 Run `./scripts/check.sh` before submitting a change. Use `go test -race ./...`
 for concurrency changes. Include a reproducible failure, harness version, expected
 behavior, and tests. Redact private paths, tokens, transcript contents, and delivery

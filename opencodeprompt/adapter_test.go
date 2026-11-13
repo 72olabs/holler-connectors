@@ -79,3 +79,17 @@ func TestDefaultAdapterDoesNotFollowRedirects(t *testing.T) {
 		t.Fatalf("accepted=%v reached=%v detail=%q", accepted, reached, detail)
 	}
 }
+
+func TestRefusedConnectionReportsNotListening(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+	address := server.URL
+	server.Close()
+	handle, err := opencodeprompt.EncodeHandle(opencodeprompt.Handle{Server: address, Session: "session-one"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	detail, accepted := opencodeprompt.New(time.Second, nil).Notify(context.Background(), bus.Registration{DeliveryHandle: handle}, bus.Message{ID: "message-1"})
+	if accepted || detail != opencodeprompt.NotListening {
+		t.Fatalf("accepted=%v detail=%q", accepted, detail)
+	}
+}

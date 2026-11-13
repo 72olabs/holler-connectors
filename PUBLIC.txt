@@ -1,0 +1,34 @@
+# What is published as the public holler-connectors repository. One tracked path or folder per line; `!path`
+# excludes a path inside a listed folder. Anything not listed stays private: a new top-level file or folder is
+# private until it is listed here. Don't name private files in this file: it is published too.
+
+.github
+.gitignore
+AGENTS.md
+CLAUDE.md
+CONTRIBUTING.md
+LICENSE
+NOTICE
+PUBLIC.txt
+README.md
+SECURITY.md
+api
+buildinfo
+bus
+cli
+cmd
+codexqueue
+connector
+connectors
+docs
+fdliveness
+go.mod
+go.sum
+mcp
+notify
+opencodeprompt
+scripts
+tests
+third_party
+unread
+untrusted

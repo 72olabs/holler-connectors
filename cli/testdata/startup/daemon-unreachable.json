@@ -1,0 +1,5 @@
+{
+  "exit": 0,
+  "stdout": "{\n  \"hookSpecificOutput\": {\n    \"hookEventName\": \"SessionStart\",\n    \"additionalContext\": \"Holler connector state is DEGRADED because startup registration failed. Do not assume peer delivery or ask the user to relay agent messages. Continue independent work where safe and tell the operator to run holler connector doctor.\"\n  }\n}\n",
+  "ops": null
+}

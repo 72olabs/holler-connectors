@@ -11,7 +11,7 @@ func TestManagedWakeIsOneReferenceOnlyLineAndNamesBatchDrain(t *testing.T) {
 	if !strings.HasPrefix(notice, "[holler] Managed conversation message msg_reference.") || strings.ContainsAny(notice, "\r\n") {
 		t.Fatal("monitor filter prefix/one-line contract changed", notice)
 	}
-	for _, instruction := range []string{"holler_channel_claim", "holler_channel_ack", "holler_channel_inbox", "already_handled", "do not poll", "Legacy bus_inbox/bus_ack do not consume managed deliveries"} {
+	for _, instruction := range []string{"holler_channel_claim", "holler_channel_ack", "holler_channel_inbox", "already_handled", "do not poll", "setting in_reply_to to the message you answer", "Legacy bus_inbox/bus_ack do not consume managed deliveries"} {
 		if !strings.Contains(notice, instruction) {
 			t.Fatal("missing safe batch instruction", instruction)
 		}

@@ -254,6 +254,9 @@ type NotificationJob struct {
 	// ManagedBatch is the exact set leased atomically for a reference-only wake.
 	// It never crosses a transport boundary or contains message bodies.
 	ManagedBatch []ManagedNotificationMember `json:"-"`
+	// ReleaseTokens are legacy endpoint reservations taken by this round that
+	// found nobody listening; the finish gives them back in its transaction.
+	ReleaseTokens []string `json:"-"`
 }
 
 type ManagedNotificationMember struct {
@@ -265,6 +268,10 @@ type NotificationDisposition string
 
 const (
 	NotificationDeferred NotificationDisposition = "deferred"
+	// NotificationAbsent: the managed recipient was not listening (no live
+	// registration, or no waiter parked). It spends no attempt; see
+	// FinishManagedNotification.
+	NotificationAbsent   NotificationDisposition = "absent"
 	NotificationComplete NotificationDisposition = "complete"
 	NotificationRetry    NotificationDisposition = "retry"
 	NotificationAccepted NotificationDisposition = "accepted"
@@ -467,7 +474,7 @@ type ActorSession struct {
 type ActorDirectoryEntry struct {
 	Actor                  string                   `json:"actor"`
 	State                  string                   `json:"state"`
-	LastSeenAt             time.Time                `json:"last_seen_at"`
+	LastSeenAt             time.Time                `json:"last_seen_at,omitzero"` // omitted when no activity is recorded (an enrolled human who never acted)
 	Profile                *ActorProfile            `json:"profile,omitempty"`
 	Sessions               []ActorSession           `json:"sessions"`
 	SessionsTruncated      bool                     `json:"sessions_truncated,omitempty"`
@@ -528,6 +535,12 @@ type NotificationAttempt struct {
 	Harness   string `json:"harness"`
 	Result    string `json:"result"`
 	Detail    string `json:"detail,omitempty"`
+	// Absent marks a wake that failed only because the recipient was not
+	// listening at that moment. Internal to the daemon; never recorded.
+	Absent bool `json:"-"`
+	// ReservationToken is the legacy endpoint reservation such an absent
+	// attempt took; FinishNotification releases it with the outbox refund.
+	ReservationToken string `json:"-"`
 }
 
 // AttentionService is the attention mode of an agent service: a long-running
@@ -776,18 +789,6 @@ func equalRoutes(a, b []Route) bool {
 	}
 	for i := range a {
 		if a[i].Value != b[i].Value || (a[i].Kind != "" && b[i].Kind != "" && a[i].Kind != b[i].Kind) {
-			return false
-		}
-	}
-	return true
-}
-
-func equalStrings(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
 			return false
 		}
 	}
