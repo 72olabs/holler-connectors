@@ -72,6 +72,30 @@ Ordinary terminal hooks without the recorder variable make no receipt call.
 Older core-managed launches must keep their private hooks until they provide
 this interface. Managed lifecycle and private state storage remain in core.
 
+## Start-up unread counts
+
+SessionStart and `bus_status` count both inboxes through `internal/unread`:
+`check_inbox` for the legacy inbox, and the `channel.inbox` read capability
+(through `invoke_read_capability`) for managed conversation deliveries. Both are
+listings; neither claims, acknowledges or marks anything read. The managed read
+is made only when `list_capabilities` advertises `channel.inbox` in read mode.
+Against an older daemon that lacks it, the legacy count is reported alone and
+the start-up text says conversation deliveries could not be checked instead of
+saying nothing is waiting. `record_hydration` receives the combined count.
+
+`channel.inbox` stops at 100 rows and, on the daemon, at a body-size budget,
+and returns no completeness marker. A non-empty managed count is therefore a
+lower bound: start-up text says "at least N", and `bus_status` sets
+`counts_truncated: true` and `managed_unread_complete: false`. Only an empty
+listing is reported as complete.
+
+`bus_status` field meanings changed. `unread` and `available` were legacy-only
+and are now totals over both inboxes (legacy only when `managed_checked` is
+false). `counts_truncated` now also means the managed count may be incomplete.
+New fields: `legacy_unread`, `legacy_available`, `managed_checked`,
+`managed_unread`, `managed_available`, `managed_unread_complete`. A reader that
+wants the old meaning should read `legacy_unread` and `legacy_available`.
+
 ## Terminal session verification
 
 `cmd/holler-connector/session_test.go` uses a framed-JSON socket fixture to verify
