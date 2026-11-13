@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"net"
 	"os"
 	"path/filepath"
@@ -173,3 +174,18 @@ func TestActorAllocationNeverDowngradesToLegacyHello(t *testing.T) {
 type testError struct{ message string }
 
 func (e *testError) Error() string { return e.message }
+
+// The fake daemons above speak the socket protocol through the same framing
+// as the client.
+
+func readRequest(reader io.Reader) (Request, error) {
+	var request Request
+	err := ReadFrame(reader, &request)
+	return request, err
+}
+
+func writeResponse(writer io.Writer, response Response) error { return WriteFrame(writer, response) }
+
+func failure(id uint64, code, message string, retryable bool) Response {
+	return Response{ID: id, OK: false, Error: &RPCError{Code: code, Message: message, Retryable: retryable}}
+}

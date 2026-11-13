@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -11,6 +12,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/72olabs/holler-connectors/bus"
@@ -112,6 +114,9 @@ func (a *Adapter) Notify(ctx context.Context, registration bus.Registration, mes
 		request.SetBasicAuth(firstNonEmpty(handle.Username, "opencode"), handle.Password)
 	}
 	response, err := a.client.Do(request)
+	if errors.Is(err, syscall.ECONNREFUSED) {
+		return NotListening, false
+	}
 	if err != nil {
 		return bounded(err.Error()), false
 	}
@@ -122,6 +127,11 @@ func (a *Adapter) Notify(ctx context.Context, registration bus.Registration, mes
 	detail, _ := io.ReadAll(io.LimitReader(response.Body, 4096))
 	return bounded(fmt.Sprintf("OpenCode prompt_async returned %s: %s", response.Status, strings.TrimSpace(string(detail)))), false
 }
+
+// NotListening is the detail for a refused connection to the session's
+// loopback server: nothing is listening there, so the wake was not delivered
+// and nobody could have taken it. Timeouts and HTTP statuses stay failures.
+const NotListening = "opencode_not_listening"
 
 func validateHandle(handle Handle) error {
 	if handle.Version != 1 {

@@ -107,11 +107,24 @@ type Client struct {
 	helloIdentity      Identity
 	serverBuild        buildinfo.Info
 	serverCapabilities []string
+	decodeError        func(*RPCError) error
 	mu                 sync.Mutex
 	nextID             uint64
 }
 
-func Dial(ctx context.Context, socketPath string, identity Identity) (*Client, error) {
+// DialOption configures a Client made by Dial.
+type DialOption func(*Client)
+
+// WithErrorDecoder gives the client a decoder for error codes it does not
+// know itself, such as those of operations a caller adds through Call. The
+// client consults decode first for every error response, including the one
+// to hello; when decode returns nil, the client's own mapping (RPCError.Err)
+// applies.
+func WithErrorDecoder(decode func(*RPCError) error) DialOption {
+	return func(c *Client) { c.decodeError = decode }
+}
+
+func Dial(ctx context.Context, socketPath string, identity Identity, options ...DialOption) (*Client, error) {
 	identity.Actor = strings.TrimSpace(identity.Actor)
 	identity.RunID = strings.TrimSpace(identity.RunID)
 	identity.Client = strings.TrimSpace(identity.Client)
@@ -122,6 +135,9 @@ func Dial(ctx context.Context, socketPath string, identity Identity) (*Client, e
 		identity.Build = buildinfo.Current()
 	}
 	client := &Client{socketPath: socketPath, identity: identity, helloIdentity: identity}
+	for _, option := range options {
+		option(client)
+	}
 	bounded, cancel := withDefaultTimeout(ctx, 3*time.Second)
 	defer cancel()
 	client.mu.Lock()
@@ -219,7 +235,7 @@ func (c *Client) connectAttemptLocked(ctx context.Context, includeBuild, include
 	if response.ID != request.ID || !response.OK {
 		c.closeLocked()
 		if response.Error != nil {
-			return errorFromRPC(response.Error)
+			return c.errorFromResponse(response.Error)
 		}
 		return errors.New("hollerd returned invalid hello response")
 	}
@@ -702,6 +718,14 @@ func (c *Client) requireRun(runID string) error {
 	return nil
 }
 
+// Call sends one operation with args encoded as JSON and decodes a successful
+// result into target (which may be nil). It is the entry point for operations
+// this package has no method for; it applies the same default timeout,
+// reconnection and error decoding as the typed methods.
+func (c *Client) Call(ctx context.Context, op string, args interface{}, target interface{}) error {
+	return c.call(ctx, op, args, target)
+}
+
 func (c *Client) call(ctx context.Context, op string, args interface{}, target interface{}) error {
 	ctx, cancel := withDefaultTimeout(ctx, 5*time.Second)
 	defer cancel()
@@ -714,7 +738,7 @@ func (c *Client) call(ctx context.Context, op string, args interface{}, target i
 	}
 	err := c.callOnceLocked(ctx, op, args, target)
 	if err == nil {
-		if c.identity.Provisional && finalizesProvisionalActor(op) {
+		if c.identity.Provisional && FinalizesProvisionalActor(op) {
 			c.identity.Provisional = false
 		}
 		return nil
@@ -727,7 +751,7 @@ func (c *Client) call(ctx context.Context, op string, args interface{}, target i
 				return reconnectErr
 			}
 			retryErr := c.callOnceLocked(ctx, op, args, target)
-			if retryErr == nil && c.identity.Provisional && finalizesProvisionalActor(op) {
+			if retryErr == nil && c.identity.Provisional && FinalizesProvisionalActor(op) {
 				c.identity.Provisional = false
 			}
 			return retryErr
@@ -742,7 +766,7 @@ func (c *Client) call(ctx context.Context, op string, args interface{}, target i
 		return err
 	}
 	retryErr := c.callOnceLocked(ctx, op, args, target)
-	if retryErr == nil && c.identity.Provisional && finalizesProvisionalActor(op) {
+	if retryErr == nil && c.identity.Provisional && FinalizesProvisionalActor(op) {
 		c.identity.Provisional = false
 	}
 	return retryErr
@@ -769,7 +793,7 @@ func (c *Client) callOnceLocked(ctx context.Context, op string, args interface{}
 		return errors.New("hollerd returned mismatched request id")
 	}
 	if !response.OK {
-		return &rpcResponseError{err: errorFromRPC(response.Error)}
+		return &rpcResponseError{err: c.errorFromResponse(response.Error)}
 	}
 	if target == nil || len(response.Result) == 0 {
 		return nil
@@ -798,10 +822,13 @@ func withDefaultTimeout(ctx context.Context, timeout time.Duration) (context.Con
 	return context.WithTimeout(ctx, timeout)
 }
 
-func writeRequest(writer io.Writer, request Request) error    { return writeFrame(writer, request) }
-func writeResponse(writer io.Writer, response Response) error { return writeFrame(writer, response) }
+func writeRequest(writer io.Writer, request Request) error { return WriteFrame(writer, request) }
 
-func writeFrame(writer io.Writer, value interface{}) error {
+// WriteFrame writes value as one frame of the socket protocol: a four-byte
+// big-endian length, then the value as JSON. A frame holds at most
+// MaxFrameBytes of JSON. Both ends use it: a client for requests, the daemon
+// for responses.
+func WriteFrame(writer io.Writer, value interface{}) error {
 	payload, err := json.Marshal(value)
 	if err != nil {
 		return err
@@ -831,19 +858,17 @@ func writeAll(writer io.Writer, payload []byte) error {
 	return nil
 }
 
-func readRequest(reader io.Reader) (Request, error) {
-	var request Request
-	err := readFrame(reader, &request)
-	return request, err
-}
-
 func readResponse(reader io.Reader) (Response, error) {
 	var response Response
-	err := readFrame(reader, &response)
+	err := ReadFrame(reader, &response)
 	return response, err
 }
 
-func readFrame(reader io.Reader, target interface{}) error {
+// ReadFrame reads one frame written by WriteFrame and decodes it into target.
+// Decoding is strict: a field target does not have, or anything after the
+// JSON value, is an error. A zero or oversized length is an error. Both ends
+// use it: a client for responses, the daemon for requests.
+func ReadFrame(reader io.Reader, target interface{}) error {
 	var length [4]byte
 	if _, err := io.ReadFull(reader, length[:]); err != nil {
 		return err
@@ -875,103 +900,19 @@ func decodeStrict(raw []byte, target interface{}) error {
 	return nil
 }
 
-func failure(id uint64, code, message string, retryable bool) Response {
-	return Response{ID: id, OK: false, Error: &RPCError{Code: code, Message: message, Retryable: retryable}}
-}
+// Err returns the Go error a client reports for this wire error. Every code
+// the bus package names maps to its sentinel (errors.Is matches it) and keeps
+// the daemon's message; any other code becomes a plain error with the
+// message. A nil RPCError also yields an error.
+func (e *RPCError) Err() error { return errorFromRPC(e) }
 
-// ErrorDetails is the shared wire-code contract for Unix RPC and the local
-// human gateway. Transports may choose status codes, not redefine error names.
-func ErrorDetails(err error) *RPCError { return rpcError(err) }
-
-func rpcError(err error) *RPCError {
-	code := "internal"
-	switch {
-	case errors.Is(err, bus.ErrChannelDenied):
-		code = "conversation_denied"
-	case errors.Is(err, bus.ErrPreflightExpired):
-		code = "preflight_expired"
-	case errors.Is(err, bus.ErrCursorExpired):
-		code = "cursor_expired"
-	case errors.Is(err, bus.ErrAudienceChanged):
-		code = "audience_changed"
-	case errors.Is(err, bus.ErrImmutableAudience):
-		code = "immutable_audience"
-	case errors.Is(err, bus.ErrChannelCapability):
-		code = "capability_required"
-	case errors.Is(err, bus.ErrShareAuthority):
-		code = "share_authority_required"
-	case errors.Is(err, bus.ErrResponseConflict):
-		code = "response_conflict"
-	case errors.Is(err, bus.ErrAttentionConflict):
-		code = "attention_conflict"
-	case errors.Is(err, bus.ErrAttentionLocked):
-		code = "attention_locked"
-	case errors.Is(err, bus.ErrThreadObligation):
-		code = "thread_obligation"
-	case errors.Is(err, bus.ErrConfirmationNotRevisable):
-		code = "confirmation_not_revisable"
-	case errors.Is(err, bus.ErrTooManyRevisions):
-		code = "too_many_revisions"
-	case errors.Is(err, bus.ErrMemberPostNotEligible):
-		code = "member_post_not_eligible"
-	case errors.Is(err, bus.ErrHumanTurnRequired):
-		code = "human_turn_required"
-	case errors.Is(err, bus.ErrTooManyOpenRequests):
-		code = "too_many_open_requests"
-	case errors.Is(err, bus.ErrInvalid):
-		code = "invalid_request"
-	case errors.Is(err, bus.ErrNotFound):
-		code = "not_found"
-	case errors.Is(err, bus.ErrNoMessage):
-		code = "no_message"
-	case errors.Is(err, bus.ErrAttentionWaiterBusy):
-		code = "attention_waiter_busy"
-	case errors.Is(err, bus.ErrAttentionUnavailable):
-		code = "attention_unavailable"
-	case errors.Is(err, bus.ErrSessionEnded):
-		code = "session_ended"
-	case errors.Is(err, bus.ErrPresenceSuperseded):
-		code = "presence_superseded"
-	case errors.Is(err, bus.ErrRegistrationExpired):
-		return &RPCError{Code: "registration_expired", Message: err.Error(), Retryable: true}
-	case errors.Is(err, bus.ErrIdempotencyConflict):
-		code = "idempotency_conflict"
-	case errors.Is(err, bus.ErrLeaseTokenMismatch):
-		code = "lease_token_mismatch"
-	case errors.Is(err, bus.ErrLeaseExpired):
-		code = "lease_expired"
-	case errors.Is(err, bus.ErrDeliveryTerminal):
-		code = "delivery_terminal"
-	case errors.Is(err, bus.ErrActorLive):
-		code = "actor_live"
-	case errors.Is(err, bus.ErrActorArchived):
-		code = "actor_archived"
-	case errors.Is(err, bus.ErrBindingStale):
-		code = "binding_stale"
-	case errors.Is(err, bus.ErrContinuityConflict):
-		code = "continuity_conflict"
-	case errors.Is(err, bus.ErrBindingReassigned):
-		return &RPCError{Code: "binding_reassigned", Message: err.Error(), Retryable: true}
-	case errors.Is(err, bus.ErrAdoptionConflict):
-		code = "adoption_conflict"
-	case errors.Is(err, bus.ErrAdoptionBusy):
-		code = "adoption_busy"
-	case errors.Is(err, bus.ErrActorNotLive):
-		code = "actor_not_live"
-	case errors.Is(err, bus.ErrRunNotLive):
-		code = "run_not_live"
-	case errors.Is(err, bus.ErrActorAdopted):
-		code = "actor_adopted"
-	case errors.Is(err, bus.ErrAliasConflict):
-		code = "alias_conflict"
-	case errors.Is(err, bus.ErrAliasNotFound):
-		code = "alias_not_found"
-	case errors.Is(err, bus.ErrAliasTombstoned):
-		code = "alias_tombstoned"
-	case errors.Is(err, bus.ErrAliasTargetUnknown):
-		code = "alias_target_unknown"
+func (c *Client) errorFromResponse(rpc *RPCError) error {
+	if c.decodeError != nil {
+		if err := c.decodeError(rpc); err != nil {
+			return err
+		}
 	}
-	return &RPCError{Code: code, Message: err.Error(), Retryable: false}
+	return errorFromRPC(rpc)
 }
 
 func errorFromRPC(rpc *RPCError) error {
@@ -1109,7 +1050,12 @@ func (c *Client) PollCodexHook(ctx context.Context, sessionID, hookEvent string)
 	return out, err
 }
 
-func finalizesProvisionalActor(operation string) bool {
+// FinalizesProvisionalActor reports whether a successful operation commits a
+// provisional actor, one the daemon allocated at hello but has not yet made
+// permanent. Reads, heartbeat_registrations and record_agent_client leave it
+// provisional; every other operation commits it. Client and daemon apply the
+// same rule, so a Client's Identity().Provisional follows the daemon's view.
+func FinalizesProvisionalActor(operation string) bool {
 	switch operation {
 	case "record_agent_client":
 		return false

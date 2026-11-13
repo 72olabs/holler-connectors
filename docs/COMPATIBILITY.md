@@ -6,8 +6,19 @@
 Unix socket, sending JSON frames prefixed by a 4-byte big-endian payload length.
 The frame limit is 2 MiB. `hello` negotiates protocol version 1, identity, build
 information, and capabilities. `bus/` contains shared wire types and validation;
-`buildinfo/` supplies build identity. These Go APIs are initially experimental;
-the wire contract, not Go type layout, is the compatibility boundary.
+`buildinfo/` supplies build identity. For other clients, the wire contract, not
+Go type layout, is the compatibility boundary.
+
+The Holler daemon imports `api`, `bus`, `buildinfo`, `codexqueue`, `connector`,
+`notify`, `opencodeprompt`, `untrusted`, `unread`, `fdliveness` and `mcp` from
+this module, so their exported Go APIs are supported: the daemon is built from the
+same source revision, and a change to them is checked against it before it is
+published. It uses `api.Client` as its own socket client (adding operations
+through `Call` and error codes through `WithErrorDecoder`) and `ReadFrame` and
+`WriteFrame` for the frames it serves, so both ends share one framing. It
+calls `holler-connector notify` with `notify.Request` and reads `notify.Result`,
+so both ends of that call share one type, and it uses `connector` for hooks,
+setup, doctor, launch and the frozen manifests.
 
 A matching protocol number is necessary but not sufficient. Optional features
 are capability-gated; unknown operations must not be interpreted as success.
@@ -41,6 +52,11 @@ adapter after failure. An accepted wake is not proof of processing: claim/ack
 remain separate daemon operations. The private daemon persists only bounded
 fixed outcome labels, not arbitrary adapter stderr or detail.
 
+For OpenCode, a refused connection to the session's loopback server returns
+`accepted: false` with `detail: "opencode_not_listening"`: nothing was listening,
+so nobody could have taken the wake. Other failures (timeouts, HTTP statuses)
+keep their bounded error text.
+
 ## Source boundary
 
 Public: lifecycle hydration, MCP, daemon client, install/configuration/diagnostics,
@@ -51,10 +67,9 @@ scheduling, SQLite, desktop/gateway, and managed agent lifecycle. No server or
 storage implementation is copied into this repository. `scripts/check-boundary.py`
 checks dependencies and source imports in CI.
 
-The private core currently retains its existing implementation for backward
-compatibility. The new public executable is selected explicitly; this extraction
-does not silently change installed agents. Core's existing vendor workflow can
-continue pinning connector package assets. Do not edit that vendored copy directly.
+The daemon's own CLI is built on package `cli`, so it runs the same hook,
+monitor, MCP and setup code as `holler-connector`, and Holler's releases ship the
+plugin files from `connectors/marketplace` in this tree.
 
 ## Managed-agent session receipts
 
@@ -68,13 +83,15 @@ run and generation and the stored lifecycle/identity/history constraints before
 recording evidence. The hook has a five-second deadline and a fixed, body-free
 advisory on failure; messaging continues when resume evidence is unavailable.
 
-Ordinary terminal hooks without the recorder variable make no receipt call.
+Ordinary terminal hooks without the recorder variable make no receipt call. This hand-off is
+the default of `cli.Options.RecordSession`; a binary built on `cli` can record
+the receipt itself instead.
 Older core-managed launches must keep their private hooks until they provide
 this interface. Managed lifecycle and private state storage remain in core.
 
 ## Start-up unread counts
 
-SessionStart and `bus_status` count both inboxes through `internal/unread`:
+SessionStart and `bus_status` count both inboxes through `unread`:
 `check_inbox` for the legacy inbox, and the `channel.inbox` read capability
 (through `invoke_read_capability`) for managed conversation deliveries. Both are
 listings; neither claims, acknowledges or marks anything read. The managed read
@@ -111,7 +128,7 @@ shortens itself and the notes give way to a `bus_status` pointer instead.
 
 ## Terminal session verification
 
-`cmd/holler-connector/session_test.go` uses a framed-JSON socket fixture to verify
+`cli/session_test.go` uses a framed-JSON socket fixture to verify
 startup/resume/clear/compact hydration and exact-session expiry for Claude, Codex,
 and OpenCode, without claiming or acknowledging inbox messages during hydration.
 It also exercises Claude monitor reconnection, expired-registration recovery,
