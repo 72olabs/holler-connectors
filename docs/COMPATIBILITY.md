@@ -72,6 +72,17 @@ Ordinary terminal hooks without the recorder variable make no receipt call.
 Older core-managed launches must keep their private hooks until they provide
 this interface. Managed lifecycle and private state storage remain in core.
 
+## Start-up unread counts
+
+SessionStart and `bus_status` count both inboxes through `internal/unread`:
+`check_inbox` for the legacy inbox, and the `channel.inbox` read capability
+(through `invoke_read_capability`) for managed conversation deliveries. Both are
+listings; neither claims, acknowledges or marks anything read. The managed read
+is made only when `list_capabilities` advertises `channel.inbox` in read mode.
+Against an older daemon that lacks it, the legacy count is reported alone and
+the start-up text says conversation deliveries could not be checked instead of
+saying nothing is waiting. `record_hydration` receives the combined count.
+
 ## Terminal session verification
 
 `cmd/holler-connector/session_test.go` uses a framed-JSON socket fixture to verify

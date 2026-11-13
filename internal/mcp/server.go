@@ -16,6 +16,7 @@ import (
 
 	"github.com/72olabs/holler-connectors/buildinfo"
 	"github.com/72olabs/holler-connectors/bus"
+	"github.com/72olabs/holler-connectors/internal/unread"
 )
 
 const defaultProtocolVersion = "2024-11-05"
@@ -508,26 +509,28 @@ func (s *Server) callTool(ctx context.Context, name string, raw json.RawMessage)
 		if err := decodeStrict(raw, &struct{}{}); err != nil {
 			return nil, err
 		}
-		items, err := withBoundIdentityRetry(s, func(actor, _ string) ([]bus.InboxItem, error) {
-			return s.store.CheckInbox(ctx, actor, 100)
+		counts, err := withBoundIdentityRetry(s, func(actor, _ string) (unread.Counts, error) {
+			return unread.Count(ctx, s.store, actor)
 		})
 		if err != nil {
 			return nil, err
-		}
-		available := 0
-		for _, item := range items {
-			if item.Available {
-				available++
-			}
 		}
 		actor, runID = s.boundIdentity()
 		conditions, err := s.store.ListConditions(ctx, false, 100)
 		if err != nil {
 			return nil, err
 		}
+		// unread and available cover both inboxes; legacy_* and managed_* split
+		// them by the tool that reads each. managed_checked is false when the
+		// daemon could not list conversation deliveries, so the totals are then
+		// legacy only.
 		return map[string]interface{}{
 			"actor": actor, "run": runID, "peer": s.config.Peer,
-			"unread": len(items), "available": available, "counts_truncated": len(items) == 100,
+			"unread": counts.Total(), "available": counts.LegacyAvailable + counts.ManagedAvailable,
+			"counts_truncated": counts.LegacyTruncated || counts.ManagedTruncated,
+			"legacy_unread":    counts.Legacy, "legacy_available": counts.LegacyAvailable,
+			"managed_checked": counts.ManagedChecked,
+			"managed_unread":  counts.Managed, "managed_available": counts.ManagedAvailable,
 			"operator_conditions": conditions,
 		}, nil
 	case "holler_profile":

@@ -8,6 +8,15 @@ import (
 	"testing"
 )
 
+// The exact bytes every plugin receives when the daemon cannot be reached.
+const degradedHookJSON = `{
+  "hookSpecificOutput": {
+    "hookEventName": "SessionStart",
+    "additionalContext": "Holler connector state is DEGRADED because startup registration failed. Do not assume peer delivery or ask the user to relay agent messages. Continue independent work where safe and tell the operator to run holler connector doctor."
+  }
+}
+`
+
 func TestMissingDaemonDoesNotBlockLifecycle(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	t.Setenv("HOLLER_SOCKET", filepath.Join(t.TempDir(), "missing.sock"))
@@ -19,6 +28,9 @@ func TestMissingDaemonDoesNotBlockLifecycle(t *testing.T) {
 		code := run(context.Background(), []string{command, "--harness", "claude"}, strings.NewReader(`{"session_id":"session"}`), &out, &err)
 		if code != 0 {
 			t.Fatalf("%s blocked: %d %s", command, code, err.String())
+		}
+		if command == "hook" && out.String() != degradedHookJSON {
+			t.Fatalf("DEGRADED hook output changed:\n%s", out.String())
 		}
 	}
 	var out, err bytes.Buffer
