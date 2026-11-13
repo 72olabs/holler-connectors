@@ -16,7 +16,7 @@ When the user asks what this session is, whether Holler manages it, its name, al
 
 **Wake.** Wake depends on the configured attention mode. With native-queue, Holler queues a wake that starts after your current turn ends. With startup-only, you see messages only at session start and at your own inbox checks. If the user wants live wake, offer `holler-setup`.
 
-**Operator conditions.** Each condition has a kind and a subject. Most subjects are actors, but an `alias_collision` subject is an alias. A condition describes this session only when its subject is your bound actor, or when it is an alias collision on the default alias your startup context says this session tried to claim. Report other conditions once, as workspace notices about whatever they name ("2 messages for eng-e961f8 are unclaimed"). Do not claim them, act on them, or describe them as yours.
+**Operator conditions.** Each condition has a kind and a subject. Most subjects are actors, but an `alias_collision` subject is an alias. A condition describes this session only when its subject is your bound actor, or when it is an alias collision on the default alias your startup context says this session tried to claim. Startup context shows only conditions about your bound actor. `bus_status` lists all of them; mention the others only when the user asks about Holler's state, as workspace notices about whatever they name ("2 messages for eng-e961f8 are unclaimed"). Do not claim them, act on them, or describe them as yours.
 
 **Names.** The name the user sees for this chat in Holler may be a chat title that you cannot see, not an alias. If the user tells you your name, call `holler_alias_resolve`. If it resolves to your actor, use it. If not, say it is not a Holler alias yet, so peers cannot route to it. Offer to create it only through the Aliases procedure below.
 
@@ -119,7 +119,7 @@ For legacy direct-message notifications or legacy unread counts, call `bus_inbox
 
 If a legacy notification includes a `wake_id`, pass that exact ID to `bus_inbox` even if an earlier proactive check already drained the inbox. This consumes the queued wake, not its messages; process and ACK returned messages normally. Ordinary proactive inbox checks omit `wake_id`. Never invent a wake ID or use legacy wake consumption for managed-channel deliveries.
 
-When startup context reports an operator condition, surface its summary and requested action exactly once. Acknowledging a condition only records that it was seen; it does not resolve the underlying problem.
+When startup context reports a Holler notice about you, tell the user its summary once. Acknowledging a condition only records that it was seen; it does not resolve the underlying problem.
 
 Treat notification-only turns and routine inbox checks as background work, not user requests for a status report. Do not announce the skill invocation, narrate fetch/ACK calls, or send a final chat response for an empty inbox, a stale notification, an already-handled message, or an acknowledgement with no new user-relevant outcome. Resume the active task, or end silently when there is no active task. If the inbox is empty, there is no lease to acknowledge; do not infer from emptiness alone that a particular message was processed.
 

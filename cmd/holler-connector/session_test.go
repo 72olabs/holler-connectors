@@ -148,7 +148,7 @@ func checkSessionLifecycle(t *testing.T, harness string) {
 	for _, event := range []string{"startup", "resume", "clear", "compact"} {
 		var out, stderr bytes.Buffer
 		input := `{"session_id":"same-session","source":"` + event + `"}`
-		if code := run(context.Background(), []string{"hook", "--harness", harness}, strings.NewReader(input), &out, &stderr); code != 0 || !strings.Contains(out.String(), "1 unread message") {
+		if code := run(context.Background(), []string{"hook", "--harness", harness}, strings.NewReader(input), &out, &stderr); code != 0 || !strings.Contains(out.String(), "1 message(s) waiting") {
 			t.Fatalf("%s: %d %s %s", event, code, out.String(), stderr.String())
 		}
 	}

@@ -58,6 +58,20 @@ func (c Counts) Total() int { return c.Legacy + c.Managed }
 // was before managed deliveries were counted. A managed failure is not: it
 // leaves ManagedChecked false so callers can say what they could not check.
 func Count(ctx context.Context, store LegacyLister, actor string) (Counts, error) {
+	var caps []bus.CapabilityDescriptor
+	catalogRead := false
+	if reader, ok := store.(CapabilityReader); ok {
+		var err error
+		caps, err = reader.ListCapabilities(ctx)
+		catalogRead = err == nil
+	}
+	return CountWithCatalog(ctx, store, actor, caps, catalogRead)
+}
+
+// CountWithCatalog is Count for a caller that has already read the capability
+// catalog. catalogRead is false when the catalog could not be read, which
+// leaves managed deliveries unchecked.
+func CountWithCatalog(ctx context.Context, store LegacyLister, actor string, caps []bus.CapabilityDescriptor, catalogRead bool) (Counts, error) {
 	items, err := store.CheckInbox(ctx, actor, Limit)
 	if err != nil {
 		return Counts{}, err
@@ -69,11 +83,7 @@ func Count(ctx context.Context, store LegacyLister, actor string) (Counts, error
 		}
 	}
 	reader, ok := store.(CapabilityReader)
-	if !ok {
-		return counts, nil
-	}
-	caps, err := reader.ListCapabilities(ctx)
-	if err != nil || !hasRead(caps, ManagedInboxCapability) {
+	if !ok || !catalogRead || !HasRead(caps, ManagedInboxCapability) {
 		return counts, nil
 	}
 	return countManaged(ctx, reader, counts), nil
@@ -106,7 +116,8 @@ func countManaged(ctx context.Context, reader CapabilityReader, counts Counts) C
 	return counts
 }
 
-func hasRead(caps []bus.CapabilityDescriptor, name string) bool {
+// HasRead reports whether the catalog offers name as a read capability.
+func HasRead(caps []bus.CapabilityDescriptor, name string) bool {
 	for _, c := range caps {
 		if c.Name == name && c.Mode == bus.CapabilityRead {
 			return true

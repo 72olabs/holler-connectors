@@ -96,6 +96,12 @@ New fields: `legacy_unread`, `legacy_available`, `managed_checked`,
 `managed_unread`, `managed_available`, `managed_unread_complete`. A reader that
 wants the old meaning should read `legacy_unread` and `legacy_available`.
 
+The start-up text is composed by `connector.FormatStartupContext` and capped at
+`StartupContextBudget` (1000 bytes). It names at most three channels from
+`channel.list`, and shows at most two active operator conditions, only those
+whose subject is the session's own actor; the session claims presentation only
+for the conditions it shows. Other conditions remain in `bus_status`.
+
 ## Terminal session verification
 
 `cmd/holler-connector/session_test.go` uses a framed-JSON socket fixture to verify
