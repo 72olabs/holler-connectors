@@ -154,7 +154,7 @@ func (r *Runtime) SessionStart(ctx context.Context, config SessionConfig, input 
 func UnreadStartupText(c unread.Counts) string {
 	count := func(n int, truncated bool) string {
 		if truncated {
-			return fmt.Sprintf("at least %d", n)
+			return fmt.Sprintf("At least %d", n)
 		}
 		return fmt.Sprint(n)
 	}
@@ -166,7 +166,11 @@ func UnreadStartupText(c unread.Counts) string {
 		return "No unread messages were present at session start."
 	}
 	var out strings.Builder
-	fmt.Fprintf(&out, "You have %s unread message(s) at session start.", count(c.Total(), c.LegacyTruncated || c.ManagedLowerBound))
+	total := fmt.Sprint(c.Total())
+	if c.LegacyTruncated || c.ManagedLowerBound {
+		total = fmt.Sprintf("at least %d", c.Total())
+	}
+	fmt.Fprintf(&out, "You have %s unread message(s) at session start.", total)
 	if c.Legacy > 0 {
 		fmt.Fprintf(&out, " %s in the legacy inbox (%d claimable): call bus_inbox, then bus_ack each with its lease token after processing.", count(c.Legacy, c.LegacyTruncated), c.LegacyAvailable)
 	}

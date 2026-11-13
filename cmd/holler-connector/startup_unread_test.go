@@ -125,14 +125,14 @@ func TestStartupCountsLegacyAndManagedUnread(t *testing.T) {
 		{
 			name:       "managed only",
 			daemon:     startupDaemon{legacy: []map[string]any{}, managed: []map[string]any{managedItem}, catalog: currentCatalog},
-			want:       []string{"You have at least 1 unread message(s)", "at least 1 in conversations (1 claimable)", "holler_channel_inbox", "holler_channel_claim", "holler_channel_ack"},
+			want:       []string{"You have at least 1 unread message(s)", "At least 1 in conversations (1 claimable)", "holler_channel_inbox", "holler_channel_claim", "holler_channel_ack"},
 			reject:     []string{"No unread", "legacy inbox", "bus_inbox", "could not be checked"},
 			hydrations: 1,
 		},
 		{
 			name:       "both",
 			daemon:     startupDaemon{legacy: []map[string]any{legacyItem}, managed: []map[string]any{managedItem}, catalog: currentCatalog},
-			want:       []string{"You have at least 2 unread message(s)", " 1 in the legacy inbox", "at least 1 in conversations", "bus_inbox", "holler_channel_inbox"},
+			want:       []string{"You have at least 2 unread message(s)", " 1 in the legacy inbox", "At least 1 in conversations", "bus_inbox", "holler_channel_inbox"},
 			reject:     []string{"No unread", "could not be checked"},
 			hydrations: 2,
 		},
@@ -141,7 +141,7 @@ func TestStartupCountsLegacyAndManagedUnread(t *testing.T) {
 			// budget returns one, with no marker that it stopped early.
 			name:       "managed listing cut by body size",
 			daemon:     startupDaemon{legacy: []map[string]any{}, managed: []map[string]any{bigManagedItem}, catalog: currentCatalog},
-			want:       []string{"You have at least 1 unread message(s)", "at least 1 in conversations"},
+			want:       []string{"You have at least 1 unread message(s)", "At least 1 in conversations"},
 			reject:     []string{"No unread", "You have 1 unread"},
 			hydrations: 1,
 		},
