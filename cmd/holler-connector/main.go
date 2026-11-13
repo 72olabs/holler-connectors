@@ -1185,41 +1185,18 @@ func runHook(ctx context.Context, args []string, stdin io.Reader, stdout, stderr
 	}
 	defer client.Close()
 	*actor = client.Identity().Actor
+	predecessor := ""
+	if adopted := client.Identity().AdoptedPredecessor; adopted != "" {
+		predecessor = fmt.Sprintf("Fresh identity: actor:%s was permanently adopted, and its inbox stays with its adopter.", untrusted.HookText(adopted))
+	}
 	output, err := connector.New(client).SessionStart(hookCtx, connector.SessionConfig{
 		Actor: *actor, RunID: *runID, Harness: *harness, ProjectID: *project, AttentionMode: attentionMode,
-		NameMode: binding.NameMode,
+		NameMode: binding.NameMode, AdoptedPredecessor: predecessor,
 	}, bytes.NewReader(payload))
 	if err != nil {
 		return writeDegradedHook(stdout, stderr, err)
 	}
 	recordAgentSession(hookCtx, binding, *actor, *harness, sessionID, payload, stderr)
-	if predecessor := client.Identity().AdoptedPredecessor; predecessor != "" {
-		output.HookSpecificOutput.AdditionalContext += fmt.Sprintf(
-			" Holler assigned the fresh actor identity %q because the previous identity %q was permanently adopted. The previous inbox remains with its adopter; use the fresh identity for this session.",
-			*actor, predecessor,
-		)
-	}
-	conditions, conditionsErr := client.ListConditions(hookCtx, false, 20)
-	if conditionsErr == nil {
-		presented := 0
-		for _, condition := range conditions {
-			if condition.State != bus.ConditionActiveVisible {
-				continue
-			}
-			claimed, claimErr := client.ClaimConditionPresentation(hookCtx, condition.Kind, condition.Subject, condition.Generation, 30*time.Second)
-			if claimErr != nil || !claimed {
-				continue
-			}
-			output.HookSpecificOutput.AdditionalContext += fmt.Sprintf(
-				" Holler operator condition [%q/%q generation %d, reason %q]: %q. Inform the operator; acknowledgement changes presentation only and does not resolve the predicate.",
-				untrusted.HookText(condition.Kind), untrusted.HookText(condition.Subject), condition.Generation, untrusted.HookText(condition.ReasonCode), untrusted.HookText(condition.Summary),
-			)
-			presented++
-			if presented == 3 {
-				break
-			}
-		}
-	}
 	return writeJSON(stdout, output)
 }
 

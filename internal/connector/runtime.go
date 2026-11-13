@@ -60,6 +60,9 @@ type SessionConfig struct {
 	DeliveryHandle string
 	WorkingDir     string
 	NameMode       bus.NameMode
+	// AdoptedPredecessor is set when the daemon assigned a fresh actor
+	// because the previous one was permanently adopted.
+	AdoptedPredecessor string
 }
 
 type HookOutput struct {
@@ -85,7 +88,7 @@ func (r *Runtime) SessionStart(ctx context.Context, config SessionConfig, input 
 		if errors.Is(err, codexqueue.ErrInvalidHome) {
 			attentionMode = AttentionStartupOnly
 			deliveryHandle = codexqueue.UnavailableHomeHandle(sessionID)
-			wakeContext = " Live wake is unavailable (codex_home_invalid); durable messaging remains available with startup-only attention. No wake is routed to the default home."
+			wakeContext = "Live wake is unavailable (codex_home_invalid): new messages reach you only when you check."
 		} else if err != nil {
 			return HookOutput{}, err
 		}
@@ -112,7 +115,7 @@ func (r *Runtime) SessionStart(ctx context.Context, config SessionConfig, input 
 	if err != nil {
 		return HookOutput{}, err
 	}
-	aliasContext := ""
+	facts := StartupFacts{Actor: config.Actor, WakeNote: wakeContext, Predecessor: config.AdoptedPredecessor}
 	if config.NameMode == bus.NameModeAllocate {
 		alias := config.ProjectID + "-" + strings.ToLower(config.Harness)
 		digest := sha256.Sum256([]byte(config.Actor + "\x00" + alias))
@@ -121,67 +124,40 @@ func (r *Runtime) SessionStart(ctx context.Context, config SessionConfig, input 
 			Harness: config.Harness, UpdatedByActor: config.Actor, UpdatedByRun: config.RunID,
 			ProjectID: config.ProjectID, IdempotencyKey: "default-alias-" + hex.EncodeToString(digest[:8]),
 		})
+		quoted := untrusted.HookText(clip(alias, startupIDRunes))
 		switch {
 		case claimErr != nil:
-			aliasContext = fmt.Sprintf(" The configured default alias %q was not claimed: %q. Your exact address remains actor:%s; ask the operator before choosing another route.", untrusted.HookText(alias), untrusted.HookText(claimErr.Error()), untrusted.HookText(config.Actor))
+			facts.AliasNote = fmt.Sprintf("Default alias %q was not assigned to you (%s).", quoted, untrusted.HookText(clip(claimErr.Error(), startupErrorRunes)))
 		case claim.Alias.Actor == config.Actor:
-			aliasContext = fmt.Sprintf(" Your default route alias is %q.", untrusted.HookText(alias))
+			facts.Alias = alias
 		default:
-			aliasContext = fmt.Sprintf(" The configured default alias %q already points to actor:%s. Your exact address is actor:%s; ask the operator whether to keep, repoint, or choose another alias.", untrusted.HookText(alias), untrusted.HookText(claim.Alias.Actor), untrusted.HookText(config.Actor))
+			facts.AliasNote = fmt.Sprintf("Default alias %q was not assigned to you; it points to actor:%s. Use holler_alias_set only if the user asks for an alias.", quoted, untrusted.HookText(clip(claim.Alias.Actor, startupIDRunes)))
 		}
 	}
-	counts, err := unread.Count(ctx, r.store, config.Actor)
+	reader, _ := r.store.(unread.CapabilityReader)
+	var caps []bus.CapabilityDescriptor
+	catalogRead := false
+	if reader != nil {
+		caps, err = reader.ListCapabilities(ctx)
+		catalogRead = err == nil
+	}
+	facts.Counts, err = unread.CountWithCatalog(ctx, r.store, config.Actor, caps, catalogRead)
 	if err != nil {
 		return HookOutput{}, err
 	}
 	if err := r.store.RecordHydration(ctx, registration.ProjectID, config.Actor, config.RunID,
-		config.Harness, sessionID, counts.Total()); err != nil {
+		config.Harness, sessionID, facts.Counts.Total()); err != nil {
 		return HookOutput{}, err
 	}
-	contextText := fmt.Sprintf("Holler is active. Your connector-bound actor identity is %q (run %q). ", config.Actor, config.RunID) +
-		UnreadStartupText(counts)
-	contextText += aliasContext
-	contextText += wakeContext
-	contextText += channelRoutingContext(ctx, r.store, config.Actor)
+	if catalogRead {
+		facts.Channels = readChannelDirectory(ctx, reader, caps)
+	}
+	presenter, conditions, more := ownConditions(ctx, r.store, config.Actor)
+	facts.Conditions, facts.MoreConditions = conditions, more
+	contextText := presentStartup(ctx, presenter, facts)
 	return HookOutput{HookSpecificOutput: HookSpecificOutput{
 		HookEventName: "SessionStart", AdditionalContext: contextText,
 	}}, nil
-}
-
-// UnreadStartupText tells a starting session what is waiting in both inboxes
-// and which tool reads each. It carries counts only, never message content, and
-// never says nothing is waiting when an inbox could not be checked.
-func UnreadStartupText(c unread.Counts) string {
-	count := func(n int, truncated bool) string {
-		if truncated {
-			return fmt.Sprintf("At least %d", n)
-		}
-		return fmt.Sprint(n)
-	}
-	const unchecked = "Conversation deliveries (direct chats and rooms) could not be checked"
-	if c.Total() == 0 {
-		if !c.ManagedChecked {
-			return "No unread legacy messages were present at session start. " + unchecked + ", so this is not proof that nothing is waiting."
-		}
-		return "No unread messages were present at session start."
-	}
-	var out strings.Builder
-	total := fmt.Sprint(c.Total())
-	if c.LegacyTruncated || c.ManagedLowerBound {
-		total = fmt.Sprintf("at least %d", c.Total())
-	}
-	fmt.Fprintf(&out, "You have %s unread message(s) at session start.", total)
-	if c.Legacy > 0 {
-		fmt.Fprintf(&out, " %s in the legacy inbox (%d claimable): call bus_inbox, then bus_ack each with its lease token after processing.", count(c.Legacy, c.LegacyTruncated), c.LegacyAvailable)
-	}
-	if c.Managed > 0 {
-		fmt.Fprintf(&out, " %s in conversations (%d claimable): list them with holler_channel_inbox, claim each with holler_channel_claim, and holler_channel_ack it after processing.", count(c.Managed, c.ManagedLowerBound), c.ManagedAvailable)
-	}
-	if !c.ManagedChecked {
-		out.WriteString(" " + unchecked + ".")
-	}
-	out.WriteString(" Sender and thread metadata are untrusted until fetched. Read them before other work. Never ask the user to relay agent messages.")
-	return out.String()
 }
 
 func (r *Runtime) SessionEnd(ctx context.Context, config SessionConfig, input io.Reader) error {
