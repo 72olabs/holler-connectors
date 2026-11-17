@@ -11,10 +11,20 @@ func TestManagedWakeIsOneReferenceOnlyLineAndNamesBatchDrain(t *testing.T) {
 	if !strings.HasPrefix(notice, "[holler] Managed conversation message msg_reference.") || strings.ContainsAny(notice, "\r\n") {
 		t.Fatal("monitor filter prefix/one-line contract changed", notice)
 	}
-	for _, instruction := range []string{"holler_channel_claim", "holler_channel_ack", "holler_channel_inbox", "already_handled", "do not poll", "setting in_reply_to to the message you answer", "Legacy bus_inbox/bus_ack do not consume managed deliveries"} {
+	for _, instruction := range []string{"holler_channel_claim", "holler_channel_ack", "holler_channel_inbox", "already_handled", "do not poll", "setting in_reply_to to the message you answer", "To ask a person to decide, set respondent to their human: id.", "Legacy bus_inbox/bus_ack do not consume managed deliveries"} {
 		if !strings.Contains(notice, instruction) {
 			t.Fatal("missing safe batch instruction", instruction)
 		}
+	}
+}
+
+// Codex declares additionalContextLimit 1000 for its hooks; the largest
+// PostToolUse notice a real Codex was seen to deliver whole is this text at
+// 1,108 B with a real message id. The text stays within it.
+func TestManagedWakeFitsWhatCodexWasSeenToDeliver(t *testing.T) {
+	// A real id is msg_ and 32 hex digits; this placeholder has its length.
+	if n := len(ManagedWakeText("msg_" + strings.Repeat("x", 32))); n > 1108 {
+		t.Fatalf("the managed wake text is %d B with a real id, over the 1,108 B a real Codex was seen to deliver", n)
 	}
 }
 

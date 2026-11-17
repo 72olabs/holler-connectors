@@ -39,6 +39,10 @@ func (s *Server) memberPost(ctx context.Context, raw json.RawMessage) (interface
 	if err := decodeStrict(raw, &a); err != nil {
 		return nil, err
 	}
+	// Refused here, before the engine: nothing is posted, counted or recorded.
+	if unshapedRequestToAPerson(a.Respondent, a.Body) {
+		return nil, errUnshapedRequest
+	}
 	args, err := json.Marshal(a)
 	if err != nil {
 		return nil, err
@@ -185,6 +189,52 @@ func channelTool(name, description string, props map[string]interface{}, require
 	return map[string]interface{}{"name": name, "description": description, "inputSchema": map[string]interface{}{"type": "object", "properties": props, "additionalProperties": false, "required": required}, "annotations": map[string]bool{"readOnlyHint": read, "idempotentHint": idempotent, "destructiveHint": false}}
 }
 
+// requestShape is how to ask a person, said where every agent reads it when
+// it asks: in the tool it asks with, not only in a skill or a role it may
+// never load. Real agents told only "ask me as a Request" wrote the choices
+// into the question; told to use the options field, they did. A
+// recommendation is only for an agent with a reason to prefer one (told to put
+// one first, every agent recommended something, a banner colour included),
+// and the example carries none, as an example teaches "always".
+const requestShape = "To ask a person to decide, set respondent to their human: id and give body a one-line question. When the answer is one of a few you can name, put each in body.options as a short label (a yes/no is two); only if you have a reason to prefer one, put it first with recommended 0. The person then answers with one key. When the answers cannot be listed, ask in free text and do not make options up."
+
+const postBodyDescription = `The post: {"text":"…"}. A request to a person (with respondent): {"question":"Which branch should the fix go on?","options":["main","release-2.1"]}.`
+
+// errUnshapedRequest refuses a request to a person whose body says nothing
+// about how it is to be answered. Agents call holler_channel_post by name
+// without reading its description (a real run on main: 0 of 6 requests had
+// options), and an error is the one result every harness shows the model, so
+// its words carry the whole lesson: what is wrong, both shapes, no pressure
+// to invent options, where a recommendation goes, that the same key may be
+// reused, and that a message needing no answer goes without respondent.
+var errUnshapedRequest = errors.New(`Not posted: this asks a person (respondent) without saying how they can answer. Resend with the same idempotency_key and body {"question":"…","options":["…","…"]} when the answers can be listed (a yes/no is two options), or {"question":"…"} alone when they cannot; do not make options up. Only if you have a reason to prefer one option, add "recommended": its index and "why": one sentence; keep labels plain, never "(recommended)". If no answer is needed, resend without respondent.`)
+
+// unshapedRequestToAPerson reports whether a post asks a person (a human: id,
+// the only way a post names one) with a body that says nothing about how it is
+// to be answered: not an object, or an object with neither a question nor
+// options, unless it is an approval or a blocked report, which carry their own
+// answers. Only the structure is read, never the words. A question alone is
+// the agent saying the answers cannot be listed; text with options gives the
+// person numbered answers.
+func unshapedRequestToAPerson(respondent string, raw json.RawMessage) bool {
+	if !bus.IsHumanActor(respondent) {
+		return false
+	}
+	var body map[string]json.RawMessage
+	if json.Unmarshal(raw, &body) != nil || body == nil {
+		return true
+	}
+	var kind string
+	_ = json.Unmarshal(body["kind"], &kind)
+	if kind == "approval" || kind == "blocked" {
+		return false
+	}
+	var options []json.RawMessage
+	_ = json.Unmarshal(body["options"], &options)
+	_, question := body["question"]
+	return !question && len(options) == 0
+}
+
 func channelToolDefinitions() []map[string]interface{} {
 	str := map[string]interface{}{"type": "string"}
 	integer := map[string]interface{}{"type": "integer", "minimum": 1, "maximum": 86400}
@@ -194,7 +244,7 @@ func channelToolDefinitions() []map[string]interface{} {
 		channelTool("holler_channel_ack", "Acknowledge your processed managed delivery using its active lease token. Does not answer a response request or mark human history read.", map[string]interface{}{"message_id": str, "lease_token": str}, []string{"message_id", "lease_token"}, false, true),
 		channelTool("holler_channel_extend", "Extend your own active managed delivery lease before it expires.", map[string]interface{}{"message_id": str, "lease_token": str, "lease_seconds": integer}, []string{"message_id", "lease_token", "lease_seconds"}, false, true),
 		channelTool("holler_channel_nack", "Release your managed delivery for retry, or mark it dead-lettered with final=true. Reason stays recipient-private.", map[string]interface{}{"message_id": str, "lease_token": str, "reason": str, "final": map[string]interface{}{"type": "boolean"}}, []string{"message_id", "lease_token"}, false, false),
-		channelTool("holler_channel_post", "Post in a Holler channel without a separate approval, only where Holler allows it: a channel a person created that you post in, or a reply in the thread of a message that named you, addressed only to its sender. Refresh channel.get first and pass its policy_revision. No references, work proposals or answers to questions. Holler refuses anything else; for that, ask the user and use holler_write channel.post.", map[string]interface{}{"channel_id": str, "thread_id": str, "in_reply_to": str, "expected_policy_revision": map[string]interface{}{"type": "integer", "minimum": 0}, "idempotency_key": str, "body": map[string]interface{}{"type": "object"}, "attention_targets": map[string]interface{}{"type": "array", "items": str}, "respondent": str}, []string{"channel_id", "expected_policy_revision", "idempotency_key", "body"}, false, true),
+		channelTool("holler_channel_post", "Post in a Holler channel without a separate approval, only where Holler allows it: a channel a person created that you post in, or a reply in the thread of a message that named you, addressed only to its sender. Refresh channel.get first and pass its policy_revision. No references, work proposals or answers to questions. Holler refuses anything else; for that, ask the user and use holler_write channel.post. "+requestShape, map[string]interface{}{"channel_id": str, "thread_id": str, "in_reply_to": str, "expected_policy_revision": map[string]interface{}{"type": "integer", "minimum": 0}, "idempotency_key": str, "body": map[string]interface{}{"type": "object", "description": postBodyDescription}, "attention_targets": map[string]interface{}{"type": "array", "items": str}, "respondent": str}, []string{"channel_id", "expected_policy_revision", "idempotency_key", "body"}, false, true),
 	}
 }
 

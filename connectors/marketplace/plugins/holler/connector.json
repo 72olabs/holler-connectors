@@ -22,7 +22,7 @@
     "skills/holler-setup/SKILL.md"
   ],
   "package_hash": "sha256:ef9aace4556e05959a23c901d2d4dcb06081f01a7f0bc019f1267819d45ffbbc",
-  "tool_surface_hash": "sha256:1e1eac6fac5d169c38aab6cfe43aa9b6b0a44395ae51a0efb81c071396186611",
+  "tool_surface_hash": "sha256:e7012c5815238438880704837c9d8d70f23928cc69b01477db857e5440952bd5",
   "mcp_server_name": "holler",
   "tools": [
     {"name": "bus_send", "class": "idempotent-write"},
