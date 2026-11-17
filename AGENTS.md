@@ -122,6 +122,8 @@ For scale, measured on 2026-11-12 on an Apple Silicon laptop with a warm build c
 
 The suite uses fake harnesses and socket fixtures. It does not start a real harness or a real daemon, so it cannot show that a hook fires, that a wake arrives, or that a harness accepts a changed plugin. Say in the PR what was covered by fixtures and what would need a live run.
 
+If this directory is inside the private source repository, that repository also has a black-box suite that runs this binary and the plugin packages against a real daemon, with fake Claude Code and Codex sessions that run the plugins' hooks, MCP server and wake path. Its root `AGENTS.md` gives the command. Run it after changing a hook, `monitor`, `codex-attention`, `notify`, setup, an MCP tool or a plugin file.
+
 ## Invariants
 
 Each of these holds in the code today and is checked by the suite. Keep them true, and extend the check when you extend the behaviour.

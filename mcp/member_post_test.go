@@ -23,7 +23,7 @@ func TestChannelPostToolUsesOnlyTheMemberPostLane(t *testing.T) {
 	if memberPostCapability != api.ChannelMemberPostCapability {
 		t.Fatal("the MCP gate and the daemon's hello capability differ")
 	}
-	raw := `{"channel_id":"chn_1","thread_id":"thr_1","in_reply_to":"msg_1","expected_policy_revision":4,"idempotency_key":"k","body":{"text":"done"},"attention_targets":["b"],"respondent":"human:owner"}`
+	raw := `{"channel_id":"chn_1","thread_id":"thr_1","in_reply_to":"msg_1","expected_policy_revision":4,"idempotency_key":"k","body":{"question":"Ship it?","options":["Yes","No"]},"attention_targets":["b"],"respondent":"human:owner"}`
 	f := &memberPostFake{supported: true}
 	s := &Server{store: f}
 	if _, err := s.memberPost(context.Background(), json.RawMessage(raw)); err != nil {
